@@ -1,0 +1,253 @@
+/* ==========================================================================
+   CHASIS DE CONTROL REMOTO RC / GAMEPAD CYBER BLUE
+   ========================================================================== */
+:root {
+  --rc-bg: #050b18;
+  --rc-chassis: #0b152d;
+  --rc-chassis-border: rgba(0, 210, 255, 0.25);
+  --rc-glow: rgba(0, 210, 255, 0.4);
+  --cyan-neon: #00f0ff;
+  --blue-btn: linear-gradient(145deg, #0a2550, #041430);
+  --blue-btn-active: linear-gradient(145deg, #0072ff, #00c6ff);
+  --touch-target: 48px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: radial-gradient(circle at 50% 20%, #102347 0%, #050b18 80%, #02050c 100%);
+  background-attachment: fixed;
+  color: #f0f9ff;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  min-height: 100vh;
+}
+
+/* ENCABEZADO MINIMALISTA */
+header {
+  background: rgba(5, 11, 24, 0.9) !important;
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0, 210, 255, 0.15) !important;
+}
+
+.nav-pills {
+  background: rgba(0, 0, 0, 0.6) !important;
+  border: 1px solid rgba(0, 210, 255, 0.25) !important;
+  border-radius: 50rem !important;
+  padding: 2px !important;
+}
+
+.nav-pills .nav-link {
+  border-radius: 50rem !important;
+  color: #94a3b8 !important;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+}
+
+.nav-pills .nav-link.active {
+  background: linear-gradient(135deg, #00d2ff, #0055ff) !important;
+  color: #fff !important;
+  box-shadow: 0 0 12px rgba(0, 210, 255, 0.5);
+}
+
+/* ==========================================================================
+   CARCASA ERGONÓMICA DEL CONTROL (GAMEPAD CHASSIS)
+   ========================================================================== */
+.gamepad-chassis {
+  background: linear-gradient(180deg, #0d1a38 0%, #081024 100%);
+  border: 2px solid var(--rc-chassis-border);
+  border-radius: 36px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7), inset 0 2px 4px rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Tornillos decorativos de control industrial */
+.gamepad-chassis::before, .gamepad-chassis::after {
+  content: '•';
+  position: absolute;
+  top: 10px;
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.15);
+}
+.gamepad-chassis::before { left: 16px; }
+.gamepad-chassis::after { right: 16px; }
+
+/* ==========================================================================
+   GATILLOS SUPERIORES / BUMPERS (L1 / R1)
+   ========================================================================== */
+.trigger-btn {
+  background: linear-gradient(180deg, #162c5b 0%, #0a1838 100%);
+  border: 1px solid rgba(0, 210, 255, 0.3);
+  border-radius: 14px 14px 8px 8px;
+  color: #7dd3fc;
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 8px 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  transition: all 0.15s ease;
+  width: 100%;
+}
+
+.trigger-btn:active {
+  transform: translateY(2px);
+  background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
+  color: #fff;
+  box-shadow: 0 0 15px rgba(0, 210, 255, 0.6);
+}
+
+/* ==========================================================================
+   JOYSTICK ANALÓGICO 3D (LADO IZQUIERDO)
+   ========================================================================== */
+.joystick-container {
+  position: relative;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, #050d1e 0%, #020611 100%);
+  border: 3px solid rgba(0, 210, 255, 0.3);
+  box-shadow: inset 0 0 25px rgba(0, 0, 0, 0.9), 0 0 15px rgba(0, 210, 255, 0.15);
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.joystick-axis-h, .joystick-axis-v {
+  position: absolute;
+  background-color: rgba(0, 210, 255, 0.15);
+  pointer-events: none;
+}
+.joystick-axis-h { width: 100%; height: 1px; }
+.joystick-axis-v { height: 100%; width: 1px; }
+
+/* Manija pulgar */
+.joystick-handle {
+  position: absolute;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #38bdf8 0%, #0284c7 50%, #02385c 100%);
+  border: 3px solid #7dd3fc;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7), 0 0 15px rgba(0, 210, 255, 0.4);
+  cursor: grab;
+  touch-action: none;
+  transform: translate(0px, 0px);
+}
+
+.joystick-handle.active {
+  cursor: grabbing;
+  background: radial-gradient(circle at 35% 30%, #00f0ff 0%, #0066ff 60%, #002266 100%);
+  box-shadow: 0 0 25px rgba(0, 240, 255, 0.7);
+  border-color: #fff;
+}
+
+/* ==========================================================================
+   BOTONES DE ACCIÓN CIRCULARES (LADO DERECHO - EXCAVADORA)
+   ========================================================================== */
+.action-cluster {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 8px;
+  width: 190px;
+  height: 190px;
+  align-items: center;
+  justify-items: center;
+}
+
+.round-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--blue-btn);
+  border: 2px solid rgba(0, 210, 255, 0.35);
+  color: #e0f2fe;
+  font-size: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.6), inset 0 2px 3px rgba(255, 255, 255, 0.15);
+  transition: all 0.12s ease;
+}
+
+.round-btn span {
+  font-size: 0.55rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-top: 2px;
+  color: #7dd3fc;
+}
+
+.round-btn:active {
+  transform: scale(0.92);
+  background: var(--blue-btn-active);
+  border-color: #fff;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.7);
+  color: #fff;
+}
+
+/* ==========================================================================
+   BOTÓN STOP DE PARADA DE EMERGENCIA (CENTRO)
+   ========================================================================== */
+#btnDetener {
+  min-height: 50px;
+  background: radial-gradient(circle at 50% 30%, #ef4444 0%, #991b1b 100%);
+  border: 2px solid #fecaca;
+  border-radius: 50rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  font-size: 1.05rem;
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+  transition: all 0.15s ease;
+}
+
+#btnDetener:active {
+  transform: scale(0.96);
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.8);
+}
+
+/* PANTALLA HUD CENTRAL */
+.hud-screen {
+  background: #020713;
+  border: 1px solid rgba(0, 210, 255, 0.25);
+  border-radius: 12px;
+  padding: 6px 10px;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8);
+}
+
+/* INDICADORES */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.4);
+}
+.status-online { color: #10b981; }
+.status-connecting { color: #f59e0b; }
+.status-offline { color: #f43f5e; }
+.status-checking { color: #38bdf8; }
+.status-unverified { color: #64748b; }
+
+.spin { animation: spin-anim 1.2s infinite linear; }
+@keyframes spin-anim { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* MONITOREO & TABLA */
+.glass-card {
+  background: rgba(11, 21, 45, 0.85);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(0, 210, 255, 0.2);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.table-responsive { border-radius: 12px; overflow: hidden; }
+.table-dark { --bs-table-bg: transparent; }
+.terminal-box { max-height: 80px; overflow-y: auto; font-size: 0.7rem; }

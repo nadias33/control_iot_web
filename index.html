@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Control Remoto IoT · Excavadora</title>
+  
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body class="d-flex flex-column min-vh-100">
+
+  <!-- BARRA SUPERIOR -->
+  <header class="py-2 px-3 sticky-top">
+    <div class="container-fluid d-flex justify-content-between align-items-center" style="max-width: 600px;">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-controller text-info fs-3"></i>
+        <div>
+          <h1 class="h6 mb-0 fw-bold text-uppercase tracking-wider text-white">RC Controller</h1>
+          <small class="text-info" id="txtVehiculoNombre">Excavadora · ID #1</small>
+        </div>
+      </div>
+
+      <nav class="nav nav-pills">
+        <button class="nav-link active py-1 px-3 fw-bold" id="tabNavControl" type="button">
+          <i class="bi bi-dpad me-1"></i> Control
+        </button>
+        <button class="nav-link py-1 px-3 fw-bold" id="tabNavMonitoreo" type="button">
+          <i class="bi bi-activity me-1"></i> Monitoreo
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="container my-2 px-2 flex-grow-1" style="max-width: 600px;">
+    
+    <!-- ================================================================= -->
+    <!-- VISTA 1: CONTROL (DISEÑO GAMEPAD / CONTROL FÍSICO RC) -->
+    <!-- ================================================================= -->
+    <div id="viewControl">
+      
+      <!-- CHASIS DEL CONTROL REMOTO -->
+      <div class="gamepad-chassis p-3 mb-3">
+        
+        <!-- 1. GATILLOS SUPERIORES (L1 / R1: CABINA) -->
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <button class="trigger-btn btn-cmd" data-codigo="3" data-nombre="CABINA_IZQ">
+              <i class="bi bi-arrow-counterclockwise me-1"></i> [L1] CABINA IZQ
+            </button>
+          </div>
+          <div class="col-6">
+            <button class="trigger-btn btn-cmd" data-codigo="4" data-nombre="CABINA_DER">
+              [R1] CABINA DER <i class="bi bi-arrow-clockwise ms-1"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. PANTALLA HUD CENTRAL Y 3 ESTADOS -->
+        <div class="hud-screen mb-3 text-center">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="badge bg-dark border border-secondary text-info font-monospace small" id="txtDireccionActual">
+              CENTRO (0,0)
+            </span>
+            <span class="badge bg-info bg-opacity-25 text-info border border-info border-opacity-25 small" id="badgeOperacion">
+              EN REPOSO
+            </span>
+          </div>
+
+          <!-- Indicadores de conexión -->
+          <div class="row g-1 pt-1 border-top border-secondary border-opacity-25 text-center">
+            <div class="col-4">
+              <span class="d-block text-secondary" style="font-size: 0.6rem;">WSS</span>
+              <div id="statusWSS" class="status-indicator status-connecting"><span class="status-text">Conectando</span></div>
+            </div>
+            <div class="col-4">
+              <span class="d-block text-secondary" style="font-size: 0.6rem;">AWS 21 SP</span>
+              <div id="statusAPI" class="status-indicator status-checking"><span class="status-text">Comprobando</span></div>
+            </div>
+            <div class="col-4">
+              <span class="d-block text-secondary" style="font-size: 0.6rem;">RDS</span>
+              <div id="statusRDS" class="status-indicator status-unverified"><span class="status-text">Sin verificar</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. CUERPO DUAL DEL CONTROL: JOYSTICK (IZQ) Y BOTONES DE ACCIÓN (DER) -->
+        <div class="d-flex justify-content-between align-items-center my-3 px-1">
+          
+          <!-- LADO IZQUIERDO: JOYSTICK ANALÓGICO -->
+          <div class="d-flex flex-column align-items-center">
+            <small class="text-secondary fw-bold text-uppercase mb-1" style="font-size: 0.65rem;">
+              <i class="bi bi-arrows-move me-1 text-info"></i> Tracción
+            </small>
+            <div id="joystickZone" class="joystick-container">
+              <div id="joystickHandle" class="joystick-handle"></div>
+              <div class="joystick-axis-h"></div>
+              <div class="joystick-axis-v"></div>
+            </div>
+          </div>
+
+          <!-- LADO DERECHO: PAD EN CRUZ DE ACCIONES (HERRAMIENTAS) -->
+          <div class="d-flex flex-column align-items-center">
+            <small class="text-secondary fw-bold text-uppercase mb-1" style="font-size: 0.65rem;">
+              <i class="bi bi-tools me-1 text-info"></i> Herramientas
+            </small>
+            
+            <div class="action-cluster" id="gridComandos">
+              <!-- Fila 1: Arriba (Subir Brazo) -->
+              <div></div>
+              <button class="round-btn btn-cmd" data-codigo="5" data-nombre="SUBIR_BRAZO" title="Subir Brazo">
+                <i class="bi bi-arrow-up-circle"></i>
+                <span>Brazo ▲</span>
+              </button>
+              <div></div>
+
+              <!-- Fila 2: Izquierda (Abrir Pala) - Centro - Derecha (Cerrar Pala) -->
+              <button class="round-btn btn-cmd" data-codigo="7" data-nombre="ABRIR_PALA" title="Abrir Pala">
+                <i class="bi bi-arrows-angle-expand"></i>
+                <span>Pala ◀</span>
+              </button>
+              <div class="d-flex align-items-center justify-content-center text-info opacity-50">
+                <i class="bi bi-crosshair2 fs-4"></i>
+              </div>
+              <button class="round-btn btn-cmd" data-codigo="8" data-nombre="CERRAR_PALA" title="Cerrar Pala">
+                <i class="bi bi-arrows-angle-contract"></i>
+                <span>Pala ▶</span>
+              </button>
+
+              <!-- Fila 3: Abajo (Bajar Brazo) -->
+              <div></div>
+              <button class="round-btn btn-cmd" data-codigo="6" data-nombre="BAJAR_BRAZO" title="Bajar Brazo">
+                <i class="bi bi-arrow-down-circle"></i>
+                <span>Brazo ▼</span>
+              </button>
+              <div></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 4. BOTÓN STOP DE ALTA PRIORIDAD -->
+        <div class="mt-2 text-center">
+          <button id="btnDetener" class="btn w-100 py-3 shadow" type="button">
+            <i class="bi bi-exclamation-octagon-fill me-2 fs-5"></i> EMERGENCY STOP
+          </button>
+        </div>
+
+        <!-- 5. PANEL COMPACTO DE DEMOS -->
+        <div class="row g-2 align-items-center mt-2 pt-2 border-top border-secondary border-opacity-25">
+          <div class="col-7">
+            <select id="selectDemo" class="form-select form-select-sm bg-dark text-light border-secondary">
+              <option value="">Cargando DEMOs...</option>
+            </select>
+          </div>
+          <div class="col-3">
+            <button id="btnIniciarDemo" class="btn btn-primary btn-sm w-100 fw-bold" type="button" disabled>
+              <i class="bi bi-play-fill"></i> DEMO
+            </button>
+          </div>
+          <div class="col-2">
+            <button id="btnCancelarDemo" class="btn btn-outline-danger btn-sm w-100" type="button" disabled>
+              <i class="bi bi-x"></i>
+            </button>
+          </div>
+        </div>
+
+        <div id="demoProgressContainer" class="mt-2 d-none">
+          <div class="d-flex justify-content-between small text-secondary" style="font-size: 0.7rem;">
+            <span id="txtDemoPaso">Ejecutando paso...</span>
+            <span id="badgeDemoEstado" class="badge bg-secondary">Inactiva</span>
+          </div>
+          <div class="progress bg-dark mt-1" style="height: 4px;">
+            <div id="demoProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-info" style="width: 0%;"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- VISTA 2: MONITOREO -->
+    <!-- ================================================================= -->
+    <div id="viewMonitoreo" class="d-none">
+      
+      <!-- TARJETA ÚLTIMO MOVIMIENTO -->
+      <section class="glass-card mb-3 p-3">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="small text-uppercase fw-bold text-info">
+            <i class="bi bi-broadcast me-1"></i> Último Movimiento
+          </span>
+          <span class="badge bg-primary bg-opacity-25 text-info border border-info border-opacity-25" id="monBadgeTipoEvento">
+            REST Persistido
+          </span>
+        </div>
+
+        <div class="my-2">
+          <h2 class="display-6 fw-bold text-white mb-0 text-truncate" id="monUltimoComando">
+            DETENER (REPOSO)
+          </h2>
+          <span class="badge bg-dark border border-secondary text-info font-monospace mt-1" id="monBadgeCodigo">
+            CÓDIGO: 9
+          </span>
+        </div>
+
+        <div class="row g-2 border-top border-secondary border-opacity-25 pt-2 mt-2 small text-secondary">
+          <div class="col-6">
+            <i class="bi bi-calendar3 me-1"></i> <span class="text-light" id="monTxtFecha">--/--/----</span>
+          </div>
+          <div class="col-6 text-end">
+            <i class="bi bi-clock me-1"></i> <span class="text-info fw-bold" id="monTxtHora">--:--:--</span>
+          </div>
+          <div class="col-12 mt-1">
+            <i class="bi bi-geo me-1"></i> Origen: <span class="badge bg-dark border border-secondary text-secondary" id="monTxtOrigen">INICIAL</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- TABLA 10 MOVIMIENTOS PERSISTIDOS -->
+      <section class="glass-card mb-3 p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <span class="fw-semibold small text-uppercase text-info tracking-wider">
+              <i class="bi bi-clock-history me-1"></i> Historial (RDS)
+            </span>
+            <small class="d-block text-secondary" id="monTxtTablaEstado" style="font-size: 0.72rem;">Máx 10 registros</small>
+          </div>
+          <button id="monBtnRefrescar" class="btn btn-outline-info btn-sm py-1 px-2" title="Recargar">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-dark table-hover mb-0 small">
+            <thead>
+              <tr class="text-secondary">
+                <th style="width: 35px;" class="text-center">#</th>
+                <th>Comando</th>
+                <th>Fecha</th>
+                <th>Hora</th>
+                <th>Origen</th>
+              </tr>
+            </thead>
+            <tbody id="monTableBody">
+              <tr>
+                <td colspan="5" class="text-center py-4 text-secondary">
+                  <div class="spinner-border spinner-border-sm text-info me-2"></div>
+                  Consultando base de datos...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- TERMINAL LOGS -->
+    <section class="glass-card p-2 font-monospace mb-2">
+      <div class="d-flex justify-content-between align-items-center border-bottom border-secondary border-opacity-25 pb-1 mb-2 px-2">
+        <span class="small text-secondary text-uppercase" style="font-size: 0.65rem;">
+          <i class="bi bi-terminal me-1 text-info"></i> Consola WSS
+        </span>
+        <button id="btnLimpiarLogs" class="btn btn-link text-secondary text-decoration-none p-0 small" style="font-size: 0.68rem;">Limpiar</button>
+      </div>
+      <div id="terminalLog" class="terminal-box px-2">
+        <div class="text-secondary small">[SISTEMA] Control listo.</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- PIE DE PÁGINA (CRÉDITOS) -->
+  <footer class="mt-auto py-2 text-center text-secondary small border-top border-secondary border-opacity-25" style="background: rgba(5, 11, 24, 0.95);">
+    <div class="container">
+      <p class="mb-0 text-white-50">
+        Desarrollado por <span class="text-info fw-semibold">Nadia Itzel Salvador</span> · 2026
+      </p>
+      <small style="font-size: 0.68rem;" class="text-secondary">Telemetría y Control IoT · Práctica 4.1 y 4.2</small>
+    </div>
+  </footer>
+
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="liveToast" class="toast bg-dark text-light border-secondary" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="toast-header bg-black text-light border-secondary">
+        <i class="bi bi-info-circle text-info me-2"></i>
+        <strong class="me-auto" id="toastTitle">Aviso</strong>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+      </div>
+      <div class="toast-body small" id="toastMessage">...</div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
