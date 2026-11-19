@@ -43,7 +43,8 @@ control_iot_frontend/
 │   ├── utils/
 │   │   └── dateFormatter.js        # Normalizador de fechas y horas en zona local
 │   └── components/
-│       ├── joystick.js             # Mando analógico táctil y ratón con Pointer Events
+│       ├── sliderControl.js        # Deslizadores analógicos táctiles (Tracción y Dirección) con muelle a centro
+│       ├── joystick.js             # Mando analógico alternativo con Pointer Events
 │       ├── buttons.js              # Controlador de parada prioritaria (STOP) y herramientas
 │       ├── demoControl.js          # Selección, arranque y cancelación de secuencias DEMO
 │       ├── statusPanel.js          # Monitor de 3 indicadores de conectividad en tiempo real

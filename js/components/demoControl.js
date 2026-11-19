@@ -12,6 +12,7 @@ export class DemoControl {
     this.progressBar = document.getElementById('demoProgressBar');
     this.txtPaso = document.getElementById('txtDemoPaso');
     this.isDemoRunning = false;
+    this.demosLoaded = false;
 
     this.#init();
   }
@@ -26,12 +27,20 @@ export class DemoControl {
     wsManager.on('DEMO_FIN', () => this.#onDemoFin('Finalizada'));
     wsManager.on('DEMO_CANCELADA', () => this.#onDemoFin('Cancelada'));
 
+    // Reintentar carga de DEMOs automáticamente si se recupera la conexión WSS
+    wsManager.onStatusChange((status) => {
+      if (status === 'ONLINE' && !this.demosLoaded) {
+        this.cargarDemos();
+      }
+    });
+
     await this.cargarDemos();
   }
 
   async cargarDemos() {
     try {
       const demos = await api.getDemos();
+      this.demosLoaded = true;
       this.selectDemo.innerHTML = '';
       if (!demos || demos.length === 0) {
         this.selectDemo.innerHTML = '<option value="">Sin DEMOs registradas</option>';
@@ -48,7 +57,9 @@ export class DemoControl {
 
       this.btnIniciar.disabled = false;
     } catch (err) {
+      this.demosLoaded = false;
       this.selectDemo.innerHTML = '<option value="">Error al cargar DEMOs</option>';
+      this.btnIniciar.disabled = true;
       this.onLog(`[ERROR DEMO] ${err.message}`);
     }
   }

@@ -1,12 +1,27 @@
-import { CONFIG } from '../config.js';
+import { API_BASE_URL, CONFIG } from '../config.js';
 
 export class ApiClient {
-  constructor(baseUrl = CONFIG.API_BASE_URL) {
+  constructor(baseUrl = API_BASE_URL) {
     this.baseUrl = baseUrl;
   }
 
+  #classifyFetchError(error) {
+    if (error?.name === 'AbortError') {
+      return new Error(`Tiempo de espera agotado al conectar con el servidor AWS (${this.baseUrl})`);
+    }
+    const msg = String(error?.message || '');
+    if (error instanceof TypeError || /failed to fetch|networkerror|load failed|err_cert/i.test(msg)) {
+      const sslErr = new Error(
+        `Fallo de red/SSL/CORS al conectar con ${this.baseUrl}. Si es certificado autofirmado, abre ${this.baseUrl}/docs en otra pestaña para autorizarlo y recarga.`
+      );
+      sslErr.isSslOrNetworkError = true;
+      return sslErr;
+    }
+    return error;
+  }
+
   /**
-   * Petición genérica con soporte para timeout y manejo de errores
+   * Petición genérica con soporte para timeout, SSL y manejo de errores
    */
   async #request(endpoint, options = {}) {
     const controller = new AbortController();
@@ -39,10 +54,54 @@ export class ApiClient {
       return await response.json();
     } catch (error) {
       clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
-        throw new Error('Tiempo de espera agotado al conectar con el servidor AWS');
+      throw this.#classifyFetchError(error);
+    }
+  }
+
+  // Diagnóstico desacoplado de API AWS y Amazon RDS (con fallback si /health no existe)
+  async getHealth(vehicleId = CONFIG.VEHICLE_ID) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(`${this.baseUrl}/health`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (response.status === 200) {
+        const data = await response.json();
+        return { apiOk: true, rdsOk: data?.rds !== 'no_disponible', data };
       }
-      throw error;
+
+      if (response.status === 503) {
+        let data = null;
+        try {
+          data = await response.json();
+        } catch (_) {}
+        return {
+          apiOk: true,
+          rdsOk: false,
+          detail: data?.detail || 'Dependencia Amazon RDS no disponible',
+          data
+        };
+      }
+
+      if (response.status === 404) {
+        const vehiculo = await this.checkHealth(vehicleId);
+        return {
+          apiOk: true,
+          rdsOk: Boolean(vehiculo && (vehiculo.id_vehiculo || vehiculo.nombre)),
+          data: vehiculo
+        };
+      }
+
+      throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw this.#classifyFetchError(error);
     }
   }
 
@@ -59,6 +118,11 @@ export class ApiClient {
   // Obtener estado actual del vehículo
   async getEstado(vehicleId = CONFIG.VEHICLE_ID) {
     return await this.#request(`/vehiculos/${vehicleId}/estado`);
+  }
+
+  // Obtener historial de movimientos registrados en Amazon RDS (Máx 10)
+  async getHistorial(vehicleId = CONFIG.VEHICLE_ID) {
+    return await this.#request(`/vehiculos/${vehicleId}/historial`);
   }
 
   // Obtener catálogo de DEMOs

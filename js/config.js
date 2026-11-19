@@ -1,22 +1,33 @@
 /**
- * Configuración centralizada de la aplicación de control IoT
- * Apunta a tu servidor público AWS EC2 (con HTTPS y WSS).
+ * Configuración centralizada de la aplicación de control IoT.
+ * Apunta al servidor público AWS EC2 (HTTPS/WSS en puerto 8000).
  */
+export const API_BASE_URL = 'https://52.202.139.21:8000';
+export const WS_BASE_URL = 'wss://52.202.139.21:8000';
+
 export const CONFIG = {
   // Identificador del vehículo configurado en RDS
   VEHICLE_ID: 1,
 
-  // URL Base de la API en AWS EC2 (HTTPS)
-  API_BASE_URL: 'https://52.202.139.21',
+  // URLs base unificadas hacia AWS EC2
+  API_BASE_URL,
+  WS_BASE_URL,
 
-  // URL WebSocket Seguro (WSS) segregado por vehículo
-  WS_URL: 'wss://52.202.139.21/ws/vehiculos/1',
+  // URL WebSocket Seguro (WSS puerto 8000) segregado por vehículo
+  WS_URL: `${WS_BASE_URL}/ws/vehiculos/1`,
+
+  getWsUrl(vehicleId = this.VEHICLE_ID) {
+    return `${WS_BASE_URL}/ws/vehiculos/${vehicleId}`;
+  },
+
+  // Intervalo de reconexión automática del WebSocket (3 segundos)
+  WS_RECONNECT_INTERVAL_MS: 3000,
 
   // Intervalo de comprobación periódica de salud de la API (en milisegundos)
   HEALTH_CHECK_INTERVAL_MS: 15000,
 
   // Tiempo de espera máximo para peticiones Fetch (ms)
-  REQUEST_TIMEOUT_MS: 5000,
+  REQUEST_TIMEOUT_MS: 6000,
 
   // Mapeo canónico de comandos hacia códigos de tu base de datos
   COMANDOS: {

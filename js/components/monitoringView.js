@@ -162,7 +162,42 @@ export class MonitoringView {
       tipoBadge: 'WSS en Tiempo Real'
     });
 
-    setTimeout(() => this.cargarHistorialRest(), 300);
+    // Inserción reactiva inmediata en la tabla
+    this.#insertarFilaEnVivo({
+      comando: data.comando,
+      codigo: data.codigo,
+      fecha: fecha,
+      hora: hora,
+      origen: data.origen || 'WSS'
+    });
+
+    setTimeout(() => this.cargarHistorialRest(), 500);
+  }
+
+  #insertarFilaEnVivo({ comando, codigo, fecha, hora, origen }) {
+    if (!this.tableBody) return;
+    const tdVacio = this.tableBody.querySelector('td[colspan]');
+    if (tdVacio) {
+      this.tableBody.innerHTML = '';
+    }
+
+    const tr = document.createElement('tr');
+    tr.className = 'table-active border-info';
+    tr.innerHTML = `
+      <td class="fw-bold text-info text-center">●</td>
+      <td>
+        <span class="fw-semibold text-light">${comando}</span>
+        ${codigo !== undefined ? `<span class="badge bg-secondary ms-1 small">Cód: ${codigo}</span>` : ''}
+      </td>
+      <td><small class="text-light font-monospace">${fecha}</small></td>
+      <td><small class="text-info font-monospace">${hora}</small></td>
+      <td><span class="badge bg-dark border border-secondary text-secondary">${origen}</span></td>
+    `;
+
+    this.tableBody.insertBefore(tr, this.tableBody.firstChild);
+    while (this.tableBody.children.length > 10) {
+      this.tableBody.removeChild(this.tableBody.lastChild);
+    }
   }
 
   #onEventoDemoMovimiento(data) {
