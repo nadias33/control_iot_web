@@ -98,6 +98,14 @@ export class MonitoringView {
         });
       }
     } catch (err) {
+      this.actualizarTarjetaUltimoMovimiento({
+        comando: 'SIN ACCESO / ERROR',
+        codigo: '--',
+        fecha: '--/--/----',
+        hora: '--:--:--',
+        origen: err.message,
+        tipoBadge: 'Error REST'
+      });
       this.onLog(`[MONITOREO REST] Error al cargar estado: ${err.message}`);
     }
   }
@@ -109,9 +117,17 @@ export class MonitoringView {
 
     try {
       const historial = await api.getHistorial();
-      this.renderTabla(historial);
+      this.renderTabla(Array.isArray(historial) ? historial : []);
     } catch (err) {
       if (this.txtTablaEstado) this.txtTablaEstado.textContent = 'Error al consultar historial.';
+      this.tableBody.innerHTML = '';
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = 5;
+      td.className = 'text-center py-4 text-warning small';
+      td.textContent = `No se pudo cargar el historial: ${err.message}`;
+      tr.appendChild(td);
+      this.tableBody.appendChild(tr);
       this.onLog(`[MONITOREO REST] Error historial: ${err.message}`);
     } finally {
       this.isSyncing = false;
