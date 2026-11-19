@@ -1,8 +1,22 @@
 import { API_BASE_URL, CONFIG } from '../config.js';
+import { authStore } from './authStore.js';
 
 export class ApiClient {
   constructor(baseUrl = API_BASE_URL) {
     this.baseUrl = baseUrl;
+    this.onUnauthorized = null;
+  }
+
+  #buildAuthHeaders() {
+    const headers = {};
+    const token = authStore.getToken();
+    const guestToken = authStore.getGuestToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    } else if (guestToken) {
+      headers['X-Guest-Token'] = guestToken;
+    }
+    return headers;
   }
 
   #classifyFetchError(error) {
@@ -29,7 +43,8 @@ export class ApiClient {
 
     const defaultHeaders = {
       'Accept': 'application/json',
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      ...this.#buildAuthHeaders()
     };
 
     const config = {
@@ -47,8 +62,13 @@ export class ApiClient {
         try {
           errorData = await response.json();
         } catch (_) {}
+        if (response.status === 401 && authStore.getToken() && typeof this.onUnauthorized === 'function') {
+          this.onUnauthorized(errorData?.detail || 'Sesión expirada');
+        }
         const errorMsg = errorData?.detail || `Error HTTP ${response.status}: ${response.statusText}`;
-        throw new Error(errorMsg);
+        const httpErr = new Error(errorMsg);
+        httpErr.status = response.status;
+        throw httpErr;
       }
 
       return await response.json();
@@ -66,7 +86,7 @@ export class ApiClient {
     try {
       const response = await fetch(`${this.baseUrl}/health`, {
         method: 'GET',
-        headers: { 'Accept': 'application/json' },
+        headers: { 'Accept': 'application/json', ...this.#buildAuthHeaders() },
         signal: controller.signal
       });
       clearTimeout(timeoutId);
@@ -151,6 +171,180 @@ export class ApiClient {
   // Cancelar ejecución de DEMO mediante POST
   async postCancelarDemo(vehicleId = CONFIG.VEHICLE_ID) {
     return await this.#request(`/vehiculos/${vehicleId}/demos/cancelar`, {
+      method: 'POST'
+    });
+  }
+
+  // ==========================================
+  // MÓDULO 4.3: AUTENTICACIÓN, ADMIN, DEMOS E INVITADO
+  // ==========================================
+  async login(username, password) {
+    return await this.#request('/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    });
+  }
+
+  async logout() {
+    return await this.#request('/api/v1/auth/logout', { method: 'POST' });
+  }
+
+  async getMe() {
+    return await this.#request('/api/v1/auth/me');
+  }
+
+  async getAdminDashboard() {
+    return await this.#request('/api/v1/admin/dashboard');
+  }
+
+  async getAdminAuditoria(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return await this.#request(`/api/v1/admin/auditoria${qs ? '?' + qs : ''}`);
+  }
+
+  async getAdminModelos() {
+    return await this.#request('/api/v1/admin/modelos');
+  }
+
+  async createAdminModelo(payload) {
+    return await this.#request('/api/v1/admin/modelos', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async updateAdminModelo(idModelo, payload) {
+    return await this.#request(`/api/v1/admin/modelos/${idModelo}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async updateModeloComandos(idModelo, comandos) {
+    return await this.#request(`/api/v1/admin/modelos/${idModelo}/comandos`, {
+      method: 'PUT',
+      body: JSON.stringify({ comandos })
+    });
+  }
+
+  async getAdminUnidades(params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    return await this.#request(`/api/v1/admin/unidades${qs ? '?' + qs : ''}`);
+  }
+
+  async createAdminUnidad(payload) {
+    return await this.#request('/api/v1/admin/unidades', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async updateAdminUnidad(idVehiculo, payload) {
+    return await this.#request(`/api/v1/admin/unidades/${idVehiculo}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async deactivateAdminUnidad(idVehiculo) {
+    return await this.#request(`/api/v1/admin/unidades/${idVehiculo}/desactivar`, {
+      method: 'PATCH'
+    });
+  }
+
+  async getAdminClientes(search = '') {
+    const qs = search ? `?search=${encodeURIComponent(search)}` : '';
+    return await this.#request(`/api/v1/admin/clientes${qs}`);
+  }
+
+  async createAdminCliente(payload) {
+    return await this.#request('/api/v1/admin/clientes', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async updateAdminCliente(idUsuario, payload) {
+    return await this.#request(`/api/v1/admin/clientes/${idUsuario}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async assignAdminUnidad(payload) {
+    return await this.#request('/api/v1/admin/asignaciones', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async getMisVehiculos() {
+    return await this.#request('/api/v1/usuario/mis-vehiculos');
+  }
+
+  async setSoporteAutorizado(idVehiculo, soporteAutorizado, notasSoporte = '') {
+    return await this.#request(`/api/v1/usuario/mis-vehiculos/${idVehiculo}/soporte`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        soporte_autorizado: Boolean(soporteAutorizado),
+        notas_soporte: notasSoporte
+      })
+    });
+  }
+
+  async getDemosEditor(idVehiculo = null) {
+    const qs = idVehiculo ? `?id_vehiculo=${Number(idVehiculo)}` : '';
+    return await this.#request(`/api/v1/demos-editor${qs}`);
+  }
+
+  async getDemoEditorDetalle(idDemo) {
+    return await this.#request(`/api/v1/demos-editor/${idDemo}`);
+  }
+
+  async createDemoEditor(payload) {
+    return await this.#request('/api/v1/demos-editor', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async updateDemoEditor(idDemo, payload) {
+    return await this.#request(`/api/v1/demos-editor/${idDemo}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async deleteDemoEditor(idDemo) {
+    return await this.#request(`/api/v1/demos-editor/${idDemo}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async getInvitadoCatalogo() {
+    return await this.#request('/api/v1/invitado/catalogo');
+  }
+
+  async createInvitadoReserva(payload) {
+    return await this.#request('/api/v1/invitado/reservas', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async getInvitadoReservaActual() {
+    return await this.#request('/api/v1/invitado/reservas/actual');
+  }
+
+  async postInvitadoMovimiento(idComando, origen = 'INVITADO_DEMO') {
+    return await this.#request('/api/v1/invitado/movimiento', {
+      method: 'POST',
+      body: JSON.stringify({ id_comando: Number(idComando), origen })
+    });
+  }
+
+  async finalizarInvitadoReserva() {
+    return await this.#request('/api/v1/invitado/reservas/finalizar', {
       method: 'POST'
     });
   }

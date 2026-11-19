@@ -16,8 +16,16 @@ export const CONFIG = {
   // URL WebSocket Seguro (WSS puerto 8000) segregado por vehículo
   WS_URL: `${WS_BASE_URL}/ws/vehiculos/1`,
 
-  getWsUrl(vehicleId = this.VEHICLE_ID) {
-    return `${WS_BASE_URL}/ws/vehiculos/${vehicleId}`;
+  getWsUrl(vehicleId = this.VEHICLE_ID, authOpts = {}) {
+    const base = `${WS_BASE_URL}/ws/vehiculos/${vehicleId}`;
+    const params = new URLSearchParams();
+    if (authOpts?.token) {
+      params.set('token', authOpts.token);
+    } else if (authOpts?.guestToken) {
+      params.set('guest_token', authOpts.guestToken);
+    }
+    const qs = params.toString();
+    return qs ? `${base}?${qs}` : base;
   },
 
   // Intervalo de reconexión automática del WebSocket (3 segundos)

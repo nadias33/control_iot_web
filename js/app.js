@@ -1,11 +1,13 @@
 import { CONFIG } from './config.js';
 import { api } from './api/client.js';
+import { authStore } from './api/authStore.js';
 import { wsManager } from './websocket/wsManager.js';
 import { StatusPanel } from './components/statusPanel.js';
 import { SliderControl } from './components/sliderControl.js';
 import { ButtonsController } from './components/buttons.js';
 import { DemoControl } from './components/demoControl.js';
 import { MonitoringView } from './components/monitoringView.js';
+import { AdminView } from './components/adminView.js';
 
 class App {
   constructor() {
@@ -23,27 +25,51 @@ class App {
     this.viewMonitoreo = document.getElementById('viewMonitoreo');
     this.viewAdmin = document.getElementById('viewAdmin');
 
+    // Sesión y selector multi-unidad
+    this.badgeRol = document.getElementById('badgeRolActivo');
+    this.txtUsuario = document.getElementById('txtUsuarioActivo');
+    this.txtVehiculoNombre = document.getElementById('txtVehiculoNombre');
+    this.selectVehiculo = document.getElementById('selectVehiculoActivo');
+    this.btnAbrirLogin = document.getElementById('btnAbrirLogin');
+    this.btnCerrarSesion = document.getElementById('btnCerrarSesion');
+    this.loginModal = null;
+
     this.sliderTraction = null;
     this.sliderSteering = null;
+    this.demoControl = null;
+    this.monitoringView = null;
+    this.adminView = null;
     this.isSending = false;
   }
 
+  #getWsAuthOpts() {
+    const token = authStore.getToken();
+    const guestToken = authStore.getGuestToken();
+    return { token, guestToken };
+  }
+
   init() {
+    CONFIG.VEHICLE_ID = authStore.getActiveVehicleId();
+    if (this.txtVehiculoNombre) {
+      this.txtVehiculoNombre.textContent = authStore.getActiveVehicleName();
+    }
     this.log(`Plataforma telemática iniciada para vehículo #${CONFIG.VEHICLE_ID}...`);
 
     // 1. Iniciar Navegación entre Vistas (Control, Monitoreo y Administración)
     this.#setupNavigation();
 
-    // 2. Iniciar Panel de 3 Estados (WSS, API, RDS)
+    // 2. Configurar Sesión Multi-Rol y Modal de Login
+    this.#setupSessionUI();
+
+    // 3. Iniciar Panel de 3 Estados (WSS, API, RDS)
     const statusPanel = new StatusPanel((msg) => this.log(msg));
     statusPanel.init();
 
-    // 3. Conectar Canal WebSocket Seguro (WSS Bidireccional)
-    wsManager.connect();
+    // 4. Conectar Canal WebSocket Seguro único (WSS Bidireccional)
+    wsManager.connect(CONFIG.VEHICLE_ID, this.#getWsAuthOpts());
     this.#setupWebSocketListeners();
 
-    // 4. Instanciar los DOS CONTROLES TIPO SLIDER (DESLIZADORES TÁCTILES CON CENTRADO)
-    // Slider 1 (Izquierdo): Tracción (Avanzar / Detener / Retroceder)
+    // 5. Instanciar los DOS CONTROLES TIPO SLIDER (DESLIZADORES TÁCTILES CON CENTRADO)
     this.sliderTraction = new SliderControl({
       trackId: 'sliderTrackTraction',
       thumbId: 'sliderThumbTraction',
@@ -62,7 +88,6 @@ class App {
       }
     });
 
-    // Slider 2 (Derecho): Dirección (Girar Izquierda / Recto / Girar Derecha)
     this.sliderSteering = new SliderControl({
       trackId: 'sliderTrackSteering',
       thumbId: 'sliderThumbSteering',
@@ -81,9 +106,8 @@ class App {
       }
     });
 
-    // 5. Botones auxiliares superiores (Cabina L1/R1) y Parada de Emergencia STOP
+    // 6. Botones auxiliares superiores (Cabina L1/R1) y Parada de Emergencia STOP
     new ButtonsController((comandoId, nombreCmd) => {
-      // Si se pulsó STOP de emergencia, restablecer ambos sliders al centro físico
       if (comandoId === CONFIG.COMANDOS.DETENER) {
         if (this.sliderTraction) this.sliderTraction.resetToCenter();
         if (this.sliderSteering) this.sliderSteering.resetToCenter();
@@ -92,11 +116,19 @@ class App {
       this.ejecutarComando(comandoId, `CONTROL_${nombreCmd}`);
     });
 
-    // 6. Módulo DEMO
-    new DemoControl((msg) => this.log(msg));
+    // 7. Módulo DEMO
+    this.demoControl = new DemoControl((msg) => this.log(msg));
 
-    // 7. Vista de MONITOREO (Telemetría en tiempo real y tabla de 10 registros persistidos)
+    // 8. Vista de MONITOREO (Telemetría en tiempo real y tabla de 10 registros persistidos)
     this.monitoringView = new MonitoringView((msg) => this.log(msg));
+
+    // 9. Vista de ADMINISTRACIÓN (4.3: Exhibición Invitado | Mis Vehículos & Demos | Gestión Comercial)
+    this.adminView = new AdminView({
+      onLog: (msg) => this.log(msg),
+      onSelectVehicle: (idVehiculo, nombre) => this.cambiarVehiculoActivo(idVehiculo, nombre),
+      onDemosChanged: () => this.demoControl?.resetYcargarDemos(),
+      onGoToControl: () => this.tabControl?.click()
+    });
 
     // Botón para limpiar logs
     if (this.btnLimpiar) {
@@ -104,13 +136,18 @@ class App {
         this.terminal.innerHTML = '<div class="text-secondary small">[LOG LIMPIO]</div>';
       });
     }
+
+    if (authStore.getToken()) {
+      this.#sincronizarUnidadesUsuario();
+    }
   }
 
   #setupNavigation() {
+    const mainEl = document.querySelector('main.app-main');
     const tabs = [
       { btn: this.tabControl, view: this.viewControl },
       { btn: this.tabMonitoreo, view: this.viewMonitoreo, onOpen: () => this.monitoringView.sincronizarTodo() },
-      { btn: this.tabAdmin, view: this.viewAdmin }
+      { btn: this.tabAdmin, view: this.viewAdmin, onOpen: () => this.adminView.openAdminView() }
     ];
 
     tabs.forEach(({ btn, view, onOpen }) => {
@@ -122,10 +159,155 @@ class App {
         });
         btn.classList.add('active');
         view.classList.remove('d-none');
+        if (mainEl) {
+          mainEl.classList.toggle('admin-wide', view === this.viewAdmin);
+        }
 
         if (onOpen) await onOpen();
       });
     });
+  }
+
+  #setupSessionUI() {
+    const modalEl = document.getElementById('modalLogin');
+    if (modalEl && typeof bootstrap !== 'undefined') {
+      this.loginModal = new bootstrap.Modal(modalEl);
+    }
+
+    this.btnAbrirLogin?.addEventListener('click', () => {
+      document.getElementById('loginErrorBox')?.classList.add('d-none');
+      this.loginModal?.show();
+    });
+
+    this.btnCerrarSesion?.addEventListener('click', async () => {
+      try {
+        if (authStore.getToken()) await api.logout();
+      } catch (_) {}
+      authStore.clearSession();
+      this.log('[AUTH] Sesión cerrada. Modo Invitado activo.');
+      this.#onAuthChanged();
+    });
+
+    document.getElementById('formLogin')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errBox = document.getElementById('loginErrorBox');
+      const btnSubmit = document.getElementById('btnSubmitLogin');
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+
+      errBox?.classList.add('d-none');
+      if (btnSubmit) btnSubmit.disabled = true;
+
+      try {
+        const resp = await api.login(username, password);
+        authStore.setSession(resp);
+        this.loginModal?.hide();
+        e.target.reset();
+        this.log(`[AUTH OK] Bienvenido ${resp.usuario.nombre_completo} (${resp.usuario.rol})`);
+        await this.#onAuthChanged();
+      } catch (err) {
+        if (errBox) {
+          errBox.textContent = err.message;
+          errBox.classList.remove('d-none');
+        }
+      } finally {
+        if (btnSubmit) btnSubmit.disabled = false;
+      }
+    });
+
+    this.selectVehiculo?.addEventListener('change', () => {
+      const opt = this.selectVehiculo.selectedOptions?.[0];
+      if (!opt || !opt.value) return;
+      this.cambiarVehiculoActivo(Number(opt.value), opt.dataset.nombre || opt.textContent);
+    });
+
+    api.onUnauthorized = (msg) => {
+      authStore.clearSession();
+      this.log(`[AUTH] ${msg}`);
+      this.#onAuthChanged();
+    };
+
+    this.#renderSessionStrip();
+  }
+
+  #renderSessionStrip() {
+    const rol = authStore.getRole();
+    const user = authStore.getUser();
+    if (this.badgeRol) {
+      this.badgeRol.textContent = rol;
+      this.badgeRol.className = rol === 'ADMINISTRADOR'
+        ? 'badge bg-warning text-dark text-uppercase'
+        : rol === 'USUARIO'
+          ? 'badge bg-info text-dark text-uppercase'
+          : 'badge bg-secondary text-uppercase';
+    }
+    if (this.txtUsuario) {
+      this.txtUsuario.textContent = user ? `${user.nombre_completo} (@${user.username})` : 'Modo exhibición pública';
+    }
+    this.btnAbrirLogin?.classList.toggle('d-none', Boolean(user));
+    this.btnCerrarSesion?.classList.toggle('d-none', !user);
+    if (!user) {
+      this.selectVehiculo?.classList.add('d-none');
+    }
+  }
+
+  async #onAuthChanged() {
+    this.#renderSessionStrip();
+    this.adminView?.syncRoleVisibility();
+    if (authStore.getToken()) {
+      await this.#sincronizarUnidadesUsuario();
+    } else {
+      this.cambiarVehiculoActivo(1, 'Excavadora · ID #1');
+    }
+    if (!this.viewAdmin?.classList.contains('d-none')) {
+      await this.adminView?.openAdminView();
+    }
+  }
+
+  async #sincronizarUnidadesUsuario() {
+    try {
+      const unidades = await api.getMisVehiculos();
+      if (!this.selectVehiculo) return;
+      if (!unidades || unidades.length === 0) {
+        this.selectVehiculo.classList.add('d-none');
+        wsManager.connect(CONFIG.VEHICLE_ID, this.#getWsAuthOpts());
+        return;
+      }
+
+      this.selectVehiculo.innerHTML = '';
+      unidades.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = String(Number(u.id_vehiculo));
+        opt.dataset.nombre = `${u.nombre} · ID #${Number(u.id_vehiculo)}`;
+        opt.textContent = `#${Number(u.id_vehiculo)} ${u.nombre}`;
+        this.selectVehiculo.appendChild(opt);
+      });
+      this.selectVehiculo.classList.remove('d-none');
+
+      const ownsCurrent = unidades.some(u => Number(u.id_vehiculo) === Number(CONFIG.VEHICLE_ID));
+      const target = ownsCurrent ? unidades.find(u => Number(u.id_vehiculo) === Number(CONFIG.VEHICLE_ID)) : unidades[0];
+      this.selectVehiculo.value = String(target.id_vehiculo);
+      this.cambiarVehiculoActivo(Number(target.id_vehiculo), `${target.nombre} · ID #${Number(target.id_vehiculo)}`);
+    } catch (err) {
+      this.log(`[UNIDADES] ${err.message}`);
+    }
+  }
+
+  cambiarVehiculoActivo(idVehiculo, nombre = null) {
+    const targetId = Number(idVehiculo) || 1;
+    const label = nombre || `Unidad · ID #${targetId}`;
+    CONFIG.VEHICLE_ID = targetId;
+    authStore.setActiveVehicle(targetId, label);
+    if (this.txtVehiculoNombre) {
+      this.txtVehiculoNombre.textContent = label;
+    }
+    if (this.selectVehiculo && this.selectVehiculo.querySelector(`option[value="${targetId}"]`)) {
+      this.selectVehiculo.value = String(targetId);
+    }
+    this.log(`[UNIDAD] Cambiando canal activo a vehículo #${targetId} (${label})...`);
+    this.monitoringView?.resetParaCambioVehiculo();
+    wsManager.connect(targetId, this.#getWsAuthOpts());
+    this.demoControl?.resetYcargarDemos();
   }
 
   #updateDirectionDisplay(texto, norm) {
@@ -167,7 +349,9 @@ class App {
 
       // Si WSS no está listo o como respaldo, enviar por REST POST a FastAPI/RDS
       if (!enviadoPorWs) {
-        const resp = await api.postMovimiento(idComando, origen);
+        const resp = (authStore.getGuestToken() && !authStore.getToken())
+          ? await api.postInvitadoMovimiento(idComando, origen)
+          : await api.postMovimiento(idComando, origen);
         this.log(`[REST OK] Aceptado por API: ${resp.evento?.comando || 'Correcto'}`);
       } else {
         this.log(`[WSS TX] Comando #${idComando} transmitido por WebSocket`);
@@ -222,6 +406,12 @@ class App {
       this.log(
         `[AVISO SSL/WSS] No se pudo abrir WebSocket (${data.url}). Si usas certificado autofirmado, abre ${data.docsUrl} en el navegador para autorizarlo y recarga.`
       );
+    });
+
+    wsManager.on('WSS_FORBIDDEN', (data) => {
+      const msg = `Acceso denegado (código ${data.code}) al canal WSS de la unidad #${data.vehicleId}.`;
+      this.log(`[WSS SEGURIDAD] ${msg}`);
+      this.#showToast('Acceso WSS Restringido', msg);
     });
   }
 

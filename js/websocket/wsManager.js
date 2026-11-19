@@ -3,7 +3,8 @@ import { API_BASE_URL, CONFIG } from '../config.js';
 export class WebSocketManager {
   constructor(vehicleId = CONFIG.VEHICLE_ID) {
     this.vehicleId = Number(vehicleId) || CONFIG.VEHICLE_ID;
-    this.url = CONFIG.getWsUrl(this.vehicleId);
+    this.authOpts = {};
+    this.url = CONFIG.getWsUrl(this.vehicleId, this.authOpts);
     this.socket = null;
     this.reconnectAttempts = 0;
     this.reconnectTimer = null;
@@ -12,6 +13,7 @@ export class WebSocketManager {
     this.isConnected = false;
     this.hasConnectedOnce = false;
     this.sslHintEmitted = false;
+    this.forbiddenStopped = false;
     this.pingTimer = null;
   }
 
@@ -83,10 +85,12 @@ export class WebSocketManager {
     }
   }
 
-  connect(vehicleId = this.vehicleId) {
+  connect(vehicleId = this.vehicleId, authOpts = this.authOpts) {
     this.#clearReconnectTimer();
+    this.forbiddenStopped = false;
     const targetId = Number(vehicleId) || CONFIG.VEHICLE_ID;
-    const targetUrl = CONFIG.getWsUrl(targetId);
+    const targetAuth = authOpts || {};
+    const targetUrl = CONFIG.getWsUrl(targetId, targetAuth);
 
     if (
       this.socket &&
@@ -110,6 +114,7 @@ export class WebSocketManager {
     }
 
     this.vehicleId = targetId;
+    this.authOpts = targetAuth;
     this.url = targetUrl;
     this.#emitStatus('CONNECTING');
 
@@ -122,6 +127,7 @@ export class WebSocketManager {
         this.isConnected = true;
         this.hasConnectedOnce = true;
         this.sslHintEmitted = false;
+        this.forbiddenStopped = false;
         this.reconnectAttempts = 0;
         this.#startHeartbeat();
         this.#emitStatus('ONLINE');
@@ -139,11 +145,16 @@ export class WebSocketManager {
         }
       };
 
-      socket.onclose = () => {
+      socket.onclose = (event) => {
         if (this.socket !== socket) return;
         this.isConnected = false;
         this.#stopHeartbeat();
         this.#emitStatus('OFFLINE');
+        if (event && (event.code === 4401 || event.code === 4403)) {
+          this.forbiddenStopped = true;
+          this.#emitMessage('WSS_FORBIDDEN', { code: event.code, vehicleId: this.vehicleId });
+          return;
+        }
         this.#scheduleReconnect();
       };
 
@@ -169,13 +180,13 @@ export class WebSocketManager {
   }
 
   #scheduleReconnect() {
-    if (this.reconnectTimer || this.isConnected) return;
+    if (this.reconnectTimer || this.isConnected || this.forbiddenStopped) return;
     this.reconnectAttempts++;
     const delay = CONFIG.WS_RECONNECT_INTERVAL_MS || 3000;
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
-      if (!this.isConnected) {
-        this.connect(this.vehicleId);
+      if (!this.isConnected && !this.forbiddenStopped) {
+        this.connect(this.vehicleId, this.authOpts);
       }
     }, delay);
   }

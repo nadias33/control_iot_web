@@ -64,6 +64,25 @@ export class MonitoringView {
     ]);
   }
 
+  resetParaCambioVehiculo() {
+    this.actualizarTarjetaUltimoMovimiento({
+      comando: 'SINCRONIZANDO...',
+      codigo: '--',
+      fecha: '--/--/----',
+      hora: '--:--:--',
+      origen: `VEHÍCULO #${CONFIG.VEHICLE_ID}`,
+      tipoBadge: 'Cambiando unidad'
+    });
+    if (this.tableBody) {
+      this.tableBody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center py-3 text-secondary">
+            Consultando historial de unidad #${CONFIG.VEHICLE_ID}...
+          </td>
+        </tr>`;
+    }
+  }
+
   async cargarUltimoEstadoRest() {
     try {
       const estado = await api.getEstado();

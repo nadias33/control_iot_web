@@ -37,6 +37,11 @@ export class DemoControl {
     await this.cargarDemos();
   }
 
+  async resetYcargarDemos() {
+    this.demosLoaded = false;
+    await this.cargarDemos();
+  }
+
   async cargarDemos() {
     try {
       const demos = await api.getDemos();

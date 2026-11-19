@@ -1,52 +1,92 @@
-# Sistema Telemático de Control y Monitoreo IoT 🚜📡🎮
+# Plataforma Telemática IoT integrada (Prácticas 4.1, 4.2 y 4.3) 🚜📡🎮
 
-Plataforma web modular, responsiva y diseñada bajo la filosofía **Mobile First** con diseño tipo **Gamepad Cyber Blue** para el control y monitoreo en tiempo real de una excavadora IoT.
+Plataforma web modular (**Mobile First**) con tres módulos integrados sin recarga de página:
+**CONTROL | MONITOREO | ADMINISTRACIÓN**, conectada a **FastAPI (AWS EC2)**, **Amazon RDS (MySQL 8.0)** y **WebSocket Seguro (WSS)**.
 
-El sistema consume una arquitectura en la nube desplegada sobre **Amazon Web Services (AWS)** con **FastAPI** en Amazon EC2, persistencia en **Amazon RDS MySQL** mediante 21 Stored Procedures y canal bidireccional mediante **WebSocket Seguro (WSS)**.
-
----
-
-## 🌐 Enlaces Oficiales de la Práctica
-
-- **Aplicación Web en GitHub Pages:** [https://nadias33.github.io/control_iot_web/](https://nadias33.github.io/control_iot_web/)
-- **Documentación Swagger UI (AWS EC2 HTTPS):** [https://52.202.139.21/docs](https://52.202.139.21/docs)
-- **Canal WebSocket Seguro (WSS):** `wss://52.202.139.21/ws/vehiculos/1`
-- **Repositorio de Código en GitHub:** [https://github.com/nadias33/control_iot_web](https://github.com/nadias33/control_iot_web)
+Desarrollado por **Nadia Itzel Salvador · 2026**.
 
 ---
 
-## 🛠️ Tecnologías Empleadas
+## 🌐 Enlaces del Proyecto
 
-- **Frontend:** HTML5 Semántico, CSS3 Personalizado (Glassmorphism & Cyber Theme), Bootstrap 5.3.
-- **Lógica de Cliente:** JavaScript Moderno (ES6+) estructurado en módulos nativos (`import` / `export`).
-- **Comunicaciones:** Fetch API (`async / await`) con `AbortController` y WebSocket nativo (`wss://`).
-- **Infraestructura Cloud:** Amazon EC2 (Windows Server 2025 Base con Uvicorn/HTTPS), Amazon RDS (MySQL 8.0).
-- **Control de Versiones:** Git y GitHub Pages (despliegue estático sin servidor intermedio).
+* **Aplicación Web Pública (GitHub Pages):** [https://nadias33.github.io/control_iot_web/](https://nadias33.github.io/control_iot_web/)
+* **Documentación Swagger UI (AWS EC2 HTTPS):** [https://52.202.139.21:8000/docs](https://52.202.139.21:8000/docs)
+* **Canal WebSocket Seguro (WSS):** `wss://52.202.139.21:8000/ws/vehiculos/{id_vehiculo}`
+* **Repositorio:** [https://github.com/nadias33/control_iot_web](https://github.com/nadias33/control_iot_web)
 
 ---
 
-## 📁 Estructura Modular del Proyecto
+## 🏗️ Arquitectura General y Continuidad 4.1 / 4.2 / 4.3
 
-```text
-control_iot_frontend/
-├── index.html                      # Estructura semántica: Barra de navegación, Control y Monitoreo
-├── favicon.svg                     # Favicon vectorial original de telemetría IoT
-├── css/
-│   └── styles.css                  # Chasis de control remoto RC, efectos 3D y diseño responsivo
-├── js/
-│   ├── config.js                   # Configuración centralizada de URLs y constantes (sin secretos)
-│   ├── app.js                      # Orquestador principal de eventos y navegación sin recarga
-│   ├── api/
-│   │   └── client.js               # Cliente HTTP modular con Fetch, timeouts y manejo de errores
-│   ├── websocket/
-│   │   └── wsManager.js            # Gestor unificado de sesión WSS con reconexión automática
-│   ├── utils/
-│   │   └── dateFormatter.js        # Normalizador de fechas y horas en zona local
-│   └── components/
-│       ├── sliderControl.js        # Deslizadores analógicos táctiles (Tracción y Dirección) con muelle a centro
-│       ├── joystick.js             # Mando analógico alternativo con Pointer Events
-│       ├── buttons.js              # Controlador de parada prioritaria (STOP) y herramientas
-│       ├── demoControl.js          # Selección, arranque y cancelación de secuencias DEMO
-│       ├── statusPanel.js          # Monitor de 3 indicadores de conectividad en tiempo real
-│       └── monitoringView.js       # Tarjeta de último estado y tabla de 10 registros RDS
-└── README.md                       # Documentación técnica y manual de pruebas
+```mermaid
+flowchart LR
+  UI["Frontend ES6+ Modular (Control | Monitoreo | Administración)"]
+  UI -- "REST HTTPS :8000 (Bearer JWT / X-Guest-Token)" --> API["FastAPI + RBAC (AWS EC2)"]
+  UI -- "WSS Único :8000 (/ws/vehiculos/{id})" --> API
+  API -- "21 Stored Procedures + Tablas 4.3 (PyMySQL Pool)" --> RDS[("Amazon RDS MySQL: vehiculo_iot")]
+```
+
+### Indicadores Independientes de Conectividad
+1. **WSS:** estado real del WebSocket del navegador (`En línea` / `Conectando...` / `Desconectado`). *No acredita conexión física del ESP8266.*
+2. **API:** salud del servidor FastAPI en AWS EC2 (`Disponible` / `No disponible` / `Comprobando`).
+3. **RDS:** diagnóstico real reportado por `GET /health` desde MySQL (`Disponible` / `No disponible` / `Sin verificar`).
+
+---
+
+## 👥 Modelo Comercial y Control de Acceso (RBAC + Propiedad)
+
+| Rol | Alcance en Plataforma | Restricciones de Seguridad en Backend & WSS |
+| :--- | :--- | :--- |
+| **ADMINISTRADOR** | Dashboard con métricas reales, CRUD de Modelos comerciales y capacidades, CRUD de Unidades físicas, Clientes, Asignaciones, Demos de fábrica y Bitácora. | No puede operar unidades en estado `vendido` salvo que el propietario active explícitamente `soporte_autorizado`. |
+| **USUARIO** | Selector **Mis Vehículos**, Control y Monitoreo exclusivo de unidades propias, autorización de soporte remoto y Editor Visual de DEMOs privadas. | Bloqueo `403 Forbidden` (BOLA/IDOR) al intentar consultar o controlar unidades de otro comprador vía REST o WSS. |
+| **INVITADO** | Consulta del catálogo público (`Prueba nuestros vehículos IoT`) y reserva temporal exclusiva (máx. 120s) sobre unidades en `exhibicion`. | Comandos restringidos (`AVANZAR`, `RETROCEDER`, `GIRAR`, `DETENER`); rechazo `409 Conflict` ante sesiones simultáneas; detención segura al caducar o desconectar. |
+
+---
+
+## 🗄️ Base de Datos y Migraciones Versionadas (`migrations/`)
+
+La evolución separa **Modelo Comercial** (`modelos_vehiculo` + `modelo_comandos`) de **Unidad Física** (`vehiculos` con `id_modelo`, `numero_serie` único y `estado_comercial`) conservando intactos todos los registros históricos y Stored Procedures de 4.1 y 4.2.
+
+* `migrations/V001__admin_iot_up.sql` — Agrega `roles`, `usuarios`, `modelos_vehiculo`, `modelo_comandos`, `asignaciones_vehiculo`, `sesiones_invitado`, `bitacora_auditoria` y amplía `vehiculos` y `demos`.
+* `migrations/V001__admin_iot_down.sql` — Reversión controlada para entornos de prueba sin tocar tablas históricas.
+* `migrations/verify_migration.sql` — Conteos antes/después e integridad referencial.
+
+> **Nota sobre DDL en MySQL:** Las sentencias `CREATE TABLE` y `ALTER TABLE` realizan *commit implícito* en InnoDB. Se debe tomar Snapshot RDS y respaldo `mysqldump` antes de aplicar `V001__admin_iot_up.sql`.
+
+---
+
+## ⚙️ Variables de Entorno (Backend `.env` — Solo Nombres)
+
+* `DB_HOST` — Endpoint DNS de Amazon RDS MySQL.
+* `DB_PORT` — Puerto MySQL (`3306`).
+* `DB_USER` — Usuario de base de datos.
+* `DB_PASSWORD` — Contraseña de base de datos (nunca publicada en GitHub ni frontend).
+* `DB_NAME` — Esquema (`vehiculo_iot`).
+* `DB_POOL_SIZE`, `DB_CONNECT_TIMEOUT`, `DB_READ_TIMEOUT` — Parámetros del pool de conexiones.
+* `AUTH_SECRET_KEY`, `AUTH_TOKEN_EXPIRE_MINUTES`, `GUEST_SESSION_MAX_SECONDS` — Firma HS256 y expiración de sesiones.
+
+---
+
+## 🚀 Despliegue y Verificación
+
+1. **Aplicar migración en Amazon RDS** (previo Snapshot + `mysqldump`):
+   ```bash
+   mysql -h <DB_HOST> -u admin -p vehiculo_iot < migrations/V001__admin_iot_up.sql
+   mysql -h <DB_HOST> -u admin -p vehiculo_iot < migrations/verify_migration.sql
+   ```
+2. **Actualizar Backend en AWS EC2 (`C:\websocket_iot`) y reiniciar Uvicorn:**
+   ```powershell
+   python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --ssl-keyfile key.pem --ssl-certfile cert.pem
+   ```
+3. **Ejecutar pruebas de seguridad y flujo (P01–P17):**
+   ```powershell
+   python tests/test_admin_security.py
+   ```
+4. **Autorización de certificado autofirmado en navegadores:** abrir `https://52.202.139.21:8000/docs`, aceptar la advertencia de seguridad y recargar el frontend.
+
+---
+
+## ⚠️ Limitaciones Documentadas
+
+* El estado `En línea` de **WSS** refleja la conexión entre el navegador y FastAPI; no garantiza por sí solo que el microcontrolador físico **ESP8266** tenga energía o cobertura WiFi.
+* Al usar certificado TLS autofirmado en EC2 por IP directa, cada navegador nuevo debe aceptar `https://52.202.139.21:8000/docs` antes de consumir REST/WSS.

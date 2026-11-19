@@ -36,6 +36,49 @@
   </header>
 
   <!-- CONTENEDOR PRINCIPAL (PANTALLA FIJA SIN SCROLL) -->
+  <!-- BARRA DE SESIÓN MULTI-ROL Y SELECTOR DE UNIDAD -->
+  <div class="session-strip">
+    <div class="session-strip-inner">
+      <div class="d-flex align-items-center gap-2 min-w-0">
+        <span class="badge bg-secondary text-uppercase" id="badgeRolActivo" style="font-size: 0.62rem;">INVITADO</span>
+        <span class="text-light text-truncate small" id="txtUsuarioActivo" style="font-size: 0.7rem;">Modo exhibición</span>
+      </div>
+      <div class="d-flex align-items-center gap-1">
+        <select id="selectVehiculoActivo" class="form-select form-select-sm bg-dark text-info border-secondary py-0 d-none" style="font-size: 0.68rem; max-width: 150px;" aria-label="Seleccionar unidad asignada"></select>
+        <button id="btnAbrirLogin" class="btn btn-outline-info btn-sm py-0 px-2" style="font-size: 0.68rem;" type="button">
+          <i class="bi bi-person-lock me-1"></i>Acceder
+        </button>
+        <button id="btnCerrarSesion" class="btn btn-outline-danger btn-sm py-0 px-2 d-none" style="font-size: 0.68rem;" type="button">
+          <i class="bi bi-box-arrow-right"></i> Salir
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BARRA COMPARTIDA DE 3 INDICADORES INDEPENDIENTES (VISIBLE EN CONTROL | MONITOREO | ADMIN) -->
+  <div class="connectivity-strip">
+    <div class="status-badge-group text-center">
+      <div class="status-item">
+        <span class="text-secondary">WSS:</span>
+        <div id="statusWSS" class="status-indicator status-connecting">
+          <span class="status-text">Conectando</span>
+        </div>
+      </div>
+      <div class="status-item">
+        <span class="text-secondary">API:</span>
+        <div id="statusAPI" class="status-indicator status-checking">
+          <span class="status-text">Comprobando</span>
+        </div>
+      </div>
+      <div class="status-item">
+        <span class="text-secondary">RDS:</span>
+        <div id="statusRDS" class="status-indicator status-unverified">
+          <span class="status-text">Sin verificar</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <main class="app-main">
     
     <!-- ================================================================= -->
@@ -54,37 +97,15 @@
           </button>
         </div>
 
-        <!-- 2. HUD DE CONECTIVIDAD Y ESTADO ACTIVO -->
+        <!-- 2. HUD DE DIRECCIÓN Y ESTADO ACTIVO -->
         <div class="hud-strip">
-          <div class="d-flex justify-content-between align-items-center mb-1">
+          <div class="d-flex justify-content-between align-items-center">
             <span class="badge bg-dark border border-secondary text-info font-monospace small" id="txtDireccionActual">
               REPOSO (CENTRO)
             </span>
             <span class="badge bg-info bg-opacity-25 text-info border border-info border-opacity-25 small" id="badgeOperacion">
               SISTEMA LISTO
             </span>
-          </div>
-
-          <!-- Indicadores de los 3 Servicios Cloud -->
-          <div class="status-badge-group pt-1 border-top border-secondary border-opacity-25 text-center">
-            <div class="status-item">
-              <span class="text-secondary">WSS:</span>
-              <div id="statusWSS" class="status-indicator status-connecting">
-                <span class="status-text">Conectando</span>
-              </div>
-            </div>
-            <div class="status-item">
-              <span class="text-secondary">API:</span>
-              <div id="statusAPI" class="status-indicator status-checking">
-                <span class="status-text">Comprobando</span>
-              </div>
-            </div>
-            <div class="status-item">
-              <span class="text-secondary">RDS:</span>
-              <div id="statusRDS" class="status-indicator status-unverified">
-                <span class="status-text">Sin verificar</span>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -273,19 +294,413 @@
     </div>
 
     <!-- ================================================================= -->
-    <!-- VISTA 3: ADMINISTRACIÓN (ESPACIO LISTO PARA LA SIGUIENTE ETAPA)   -->
+    <!-- VISTA 3: ADMINISTRACIÓN (INVITADO | MIS VEHÍCULOS | ADMIN)        -->
     <!-- ================================================================= -->
     <div id="viewAdmin" class="d-none">
-      <div class="rc-chassis justify-content-center text-center p-4">
-        <i class="bi bi-shield-lock text-info fs-1 mb-2"></i>
-        <h2 class="h5 fw-bold text-white mb-1">Módulo de Administración</h2>
-        <p class="text-secondary small mb-3">
-          Configuración avanzada de parámetros del vehículo IoT, catálogo de comandos y gestión de DEMOs en Amazon RDS.
-        </p>
-        <div class="p-3 bg-dark bg-opacity-50 border border-secondary border-opacity-25 rounded-3 mb-2">
-          <small class="text-info font-monospace d-block">
-            <i class="bi bi-info-circle me-1"></i> Preparado para la etapa de desarrollo de la administración.
-          </small>
+      <div class="admin-shell">
+        <!-- Sub-navegación de la 3ra App adaptada al rol -->
+        <div class="admin-subnav" id="adminRoleSubnav" role="tablist" aria-label="Secciones de Administración">
+          <button class="admin-tab-btn active" data-section="invitado" id="btnSubInvitado" type="button">
+            <i class="bi bi-stars me-1"></i>Exhibición
+          </button>
+          <button class="admin-tab-btn d-none" data-section="usuario" id="btnSubUsuario" type="button">
+            <i class="bi bi-car-front me-1"></i>Mis Vehículos &amp; Demos
+          </button>
+          <button class="admin-tab-btn d-none" data-section="admin" id="btnSubAdmin" type="button">
+            <i class="bi bi-speedometer2 me-1"></i>Gestión Comercial
+          </button>
+        </div>
+
+        <!-- Alerta de estado o error -->
+        <div id="adminAlertBox" class="alert alert-warning py-1 px-2 mb-2 small d-none" role="alert"></div>
+
+        <!-- Contenedor con scroll interno responsivo -->
+        <div class="admin-scroll-body">
+
+          <!-- SECCIÓN A: INVITADO (CATÁLOGO Y PRUEBA TEMPORAL LIMITADA) -->
+          <section id="panelInvitado" aria-labelledby="btnSubInvitado">
+            <div class="admin-card mb-2">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <h2 class="h6 fw-bold text-info mb-0"><i class="bi bi-shop me-1"></i>Prueba nuestros vehículos IoT</h2>
+                <button id="btnRefrescarCatalogo" class="btn btn-outline-info btn-sm py-0 px-2" type="button" title="Actualizar catálogo">
+                  <i class="bi bi-arrow-clockwise"></i>
+                </button>
+              </div>
+              <p class="text-secondary mb-2" style="font-size: 0.72rem;">
+                Explora modelos disponibles y reserva una unidad de exhibición en sesión temporal exclusiva (máx. 120s). Requiere supervisión y zona despejada en pruebas físicas.
+              </p>
+
+              <!-- Caja de reserva temporal activa -->
+              <div id="invReservaActivaBox" class="p-2 rounded border border-info bg-dark bg-opacity-75 mb-2 d-none">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <span class="fw-bold text-info small" id="invReservaTitulo">Reserva activa</span>
+                  <span class="badge bg-warning text-dark font-monospace" id="invCountdown">-- s</span>
+                </div>
+                <div class="small text-secondary mb-2" id="invComandosPermitidosTxt" style="font-size: 0.68rem;"></div>
+                <div class="d-flex flex-wrap gap-1">
+                  <button id="btnInvIrControl" class="btn btn-info btn-sm fw-bold py-1 px-2" type="button">
+                    <i class="bi bi-sliders me-1"></i>Operar en Control
+                  </button>
+                  <button id="btnInvStop" class="btn btn-danger btn-sm fw-bold py-1 px-2" type="button">
+                    <i class="bi bi-octagon-fill me-1"></i>DETENER
+                  </button>
+                  <button id="btnInvFinalizar" class="btn btn-outline-light btn-sm py-1 px-2 ms-auto" type="button">
+                    Liberar Reserva
+                  </button>
+                </div>
+              </div>
+
+              <div id="invCatalogoGrid" class="row g-2">
+                <div class="col-12 text-center text-secondary small py-3">Cargando catálogo público...</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- SECCIÓN B: USUARIO COMPRADOR (MIS VEHÍCULOS + EDITOR DE DEMOS) -->
+          <section id="panelUsuario" class="d-none" aria-labelledby="btnSubUsuario">
+            <div class="admin-card mb-2">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h2 class="h6 fw-bold text-info mb-0"><i class="bi bi-key me-1"></i>Mis Vehículos Asignados</h2>
+                <button id="btnRefrescarMisVehiculos" class="btn btn-outline-info btn-sm py-0 px-2" type="button">
+                  <i class="bi bi-arrow-clockwise"></i>
+                </button>
+              </div>
+              <div id="usrMisVehiculosList" class="d-flex flex-column gap-2">
+                <div class="text-secondary small">Inicia sesión como comprador para ver tus unidades.</div>
+              </div>
+            </div>
+
+            <!-- Editor Visual de Demos Persistentes -->
+            <div class="admin-card">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h2 class="h6 fw-bold text-warning mb-0"><i class="bi bi-film me-1"></i>Editor Visual de DEMOs</h2>
+                <button id="btnNuevaDemo" class="btn btn-outline-warning btn-sm py-0 px-2" type="button">
+                  <i class="bi bi-plus-lg me-1"></i>Nueva DEMO
+                </button>
+              </div>
+
+              <form id="formDemoEditor" class="border border-secondary border-opacity-25 rounded p-2 mb-2 bg-dark bg-opacity-50">
+                <input type="hidden" id="editDemoId" value="">
+                <div class="row g-2 mb-2">
+                  <div class="col-6">
+                    <label for="editDemoVehiculo" class="form-label small text-secondary mb-0">Unidad</label>
+                    <select id="editDemoVehiculo" class="form-select form-select-sm bg-dark text-light border-secondary" required></select>
+                  </div>
+                  <div class="col-6">
+                    <label for="editDemoNombre" class="form-label small text-secondary mb-0">Nombre de DEMO</label>
+                    <input id="editDemoNombre" type="text" class="form-control form-control-sm bg-dark text-light border-secondary" maxlength="80" placeholder="Ej. Giro y Avance" required>
+                  </div>
+                  <div class="col-8">
+                    <label for="editDemoDesc" class="form-label small text-secondary mb-0">Descripción</label>
+                    <input id="editDemoDesc" type="text" class="form-control form-control-sm bg-dark text-light border-secondary" maxlength="255" placeholder="Secuencia segura en pista">
+                  </div>
+                  <div class="col-4 d-none" id="editDemoTipoWrapper">
+                    <label for="editDemoTipo" class="form-label small text-secondary mb-0">Tipo</label>
+                    <select id="editDemoTipo" class="form-select form-select-sm bg-dark text-light border-secondary">
+                      <option value="FABRICA">Fábrica</option>
+                      <option value="PRIVADA_USUARIO">Privada</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Constructor de pasos -->
+                <div class="row g-1 align-items-end mb-2">
+                  <div class="col-5">
+                    <label for="stepComandoSelect" class="form-label small text-secondary mb-0">Movimiento</label>
+                    <select id="stepComandoSelect" class="form-select form-select-sm bg-dark text-light border-secondary"></select>
+                  </div>
+                  <div class="col-3">
+                    <label for="stepDuracionMs" class="form-label small text-secondary mb-0">Dur. (ms)</label>
+                    <input id="stepDuracionMs" type="number" min="100" max="5000" step="100" value="800" class="form-control form-control-sm bg-dark text-light border-secondary">
+                  </div>
+                  <div class="col-2">
+                    <label for="stepPausaMs" class="form-label small text-secondary mb-0">Pausa</label>
+                    <input id="stepPausaMs" type="number" min="0" max="3000" step="100" value="200" class="form-control form-control-sm bg-dark text-light border-secondary">
+                  </div>
+                  <div class="col-2">
+                    <button id="btnAgregarPasoDemo" class="btn btn-info btn-sm w-100" type="button" title="Agregar paso">
+                      <i class="bi bi-plus"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <small class="text-secondary" style="font-size: 0.68rem;">Secuencia ordenada (máx 20 pasos / 60s):</small>
+                  <span id="badgeDemoTotalDuracion" class="badge bg-dark border border-info text-info font-monospace">Total: 0 ms</span>
+                </div>
+                <div id="demoPasosLista" class="d-flex flex-column gap-1 mb-2">
+                  <div class="text-secondary small text-center py-2">Sin pasos agregados</div>
+                </div>
+
+                <div class="d-flex gap-2">
+                  <button type="submit" class="btn btn-success btn-sm fw-bold flex-grow-1" id="btnGuardarDemo">
+                    <i class="bi bi-save me-1"></i>Guardar en RDS
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCancelarEdicionDemo">Cancelar</button>
+                </div>
+              </form>
+
+              <div class="table-responsive">
+                <table class="table table-dark table-sm align-middle mb-0" style="font-size: 0.72rem;">
+                  <thead>
+                    <tr class="text-secondary">
+                      <th>Nombre</th>
+                      <th>Tipo</th>
+                      <th>Unidad</th>
+                      <th class="text-end">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="usrDemosTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- SECCIÓN C: ADMINISTRACIÓN COMERCIAL (SOLO ADMINISTRADOR) -->
+          <section id="panelAdmin" class="d-none" aria-labelledby="btnSubAdmin">
+            <ul class="nav nav-tabs nav-tabs-dark mb-2" style="font-size: 0.72rem;" id="adminCrudTabs">
+              <li class="nav-item"><button class="nav-link active py-1 px-2" data-crud="dashboard" type="button">Dashboard</button></li>
+              <li class="nav-item"><button class="nav-link py-1 px-2" data-crud="modelos" type="button">Modelos</button></li>
+              <li class="nav-item"><button class="nav-link py-1 px-2" data-crud="unidades" type="button">Unidades</button></li>
+              <li class="nav-item"><button class="nav-link py-1 px-2" data-crud="clientes" type="button">Clientes</button></li>
+              <li class="nav-item"><button class="nav-link py-1 px-2" data-crud="demos" type="button">Demos</button></li>
+              <li class="nav-item"><button class="nav-link py-1 px-2" data-crud="auditoria" type="button">Auditoría</button></li>
+            </ul>
+
+            <!-- C1: DASHBOARD -->
+            <div id="crudDashboard">
+              <div class="row g-2 mb-2" id="adminMetricsGrid"></div>
+              <div class="admin-card mb-2">
+                <div class="d-flex flex-wrap gap-1 mb-2">
+                  <button type="button" class="btn btn-outline-info btn-sm py-0 px-2 btn-quick-crud" data-crud="modelos"><i class="bi bi-plus-circle me-1"></i>Modelos</button>
+                  <button type="button" class="btn btn-outline-info btn-sm py-0 px-2 btn-quick-crud" data-crud="unidades"><i class="bi bi-plus-circle me-1"></i>Unidades</button>
+                  <button type="button" class="btn btn-outline-warning btn-sm py-0 px-2 btn-quick-crud" data-crud="clientes"><i class="bi bi-person-plus me-1"></i>Clientes &amp; Asignar</button>
+                  <button type="button" class="btn btn-outline-primary btn-sm py-0 px-2 btn-quick-crud" data-crud="demos"><i class="bi bi-film me-1"></i>DEMOs Empresa</button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 btn-quick-crud" data-crud="auditoria"><i class="bi bi-journal-text me-1"></i>Bitácora</button>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-dark table-sm align-middle mb-0" style="font-size: 0.68rem;">
+                    <thead><tr class="text-secondary"><th>ID</th><th>Unidad / Serie</th><th>Modelo</th><th>Estado</th><th>Propietario</th><th>WSS</th></tr></thead>
+                    <tbody id="dashUnidadesResumenBody"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="admin-card small text-secondary">
+                <i class="bi bi-shield-check text-info me-1"></i>
+                Privacidad y seguridad: Administración gestiona catálogo e inventario, pero no puede operar unidades en estado vendido sin autorización explícita de soporte del comprador.
+              </div>
+            </div>
+
+            <!-- C2: MODELOS COMERCIALES Y COMANDOS PERMITIDOS -->
+            <div id="crudModelos" class="d-none">
+              <form id="formAdminModelo" class="admin-card mb-2">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <span class="fw-bold text-info small" id="modFormTitulo">Registrar Modelo Comercial</span>
+                  <button id="btnCancelarModelo" type="button" class="btn btn-link text-secondary p-0 small d-none" style="font-size:0.7rem;">Cancelar edición</button>
+                </div>
+                <input type="hidden" id="modId">
+                <div class="row g-2 align-items-center">
+                  <div class="col-4">
+                    <input id="modCodigo" type="text" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="Código (EXC-02)" required>
+                  </div>
+                  <div class="col-8">
+                    <input id="modNombre" type="text" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="Nombre comercial" required>
+                  </div>
+                  <div class="col-7">
+                    <input id="modDesc" type="text" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="Descripción técnica">
+                  </div>
+                  <div class="col-2">
+                    <label class="form-check small text-light mb-0">
+                      <input id="modActivo" type="checkbox" class="form-check-input" checked> Activo
+                    </label>
+                  </div>
+                  <div class="col-3">
+                    <button type="submit" class="btn btn-info btn-sm w-100 fw-bold">Guardar</button>
+                  </div>
+                </div>
+              </form>
+
+              <div class="admin-card table-responsive mb-2">
+                <table class="table table-dark table-sm align-middle mb-0" style="font-size: 0.7rem;">
+                  <thead><tr class="text-secondary"><th>Código</th><th>Modelo</th><th>Unid.</th><th>Cmds</th><th class="text-end">Acciones</th></tr></thead>
+                  <tbody id="adminModelosBody"></tbody>
+                </table>
+              </div>
+
+              <!-- Configurador de Capacidades por Modelo -->
+              <div id="panelModeloComandos" class="admin-card d-none">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="fw-bold text-warning small" id="modCmdTitulo">Capacidades del Modelo</span>
+                  <button id="btnCerrarModeloComandos" type="button" class="btn-close btn-close-white btn-sm" aria-label="Cerrar"></button>
+                </div>
+                <div class="table-responsive mb-2">
+                  <table class="table table-dark table-sm align-middle mb-0" style="font-size: 0.68rem;">
+                    <thead><tr class="text-secondary"><th>Cód</th><th>Comando</th><th class="text-center">Habilitado</th><th class="text-center">Permitido Invitado</th></tr></thead>
+                    <tbody id="adminModeloComandosBody"></tbody>
+                  </table>
+                </div>
+                <button id="btnGuardarModeloComandos" type="button" class="btn btn-warning btn-sm fw-bold text-dark w-100">
+                  Guardar Capacidades en RDS
+                </button>
+              </div>
+            </div>
+
+            <!-- C3: UNIDADES FÍSICAS -->
+            <div id="crudUnidades" class="d-none">
+              <form id="formAdminUnidad" class="admin-card mb-2">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <span class="fw-bold text-info small" id="uniFormTitulo">Registrar Unidad Física</span>
+                  <button id="btnCancelarUnidad" type="button" class="btn btn-link text-secondary p-0 small d-none" style="font-size:0.7rem;">Cancelar edición</button>
+                </div>
+                <input type="hidden" id="uniId">
+                <div class="row g-2 align-items-center">
+                  <div class="col-6">
+                    <select id="uniModeloId" class="form-select form-select-sm bg-dark text-light border-secondary" required></select>
+                  </div>
+                  <div class="col-6">
+                    <input id="uniSerie" type="text" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="No. Serie único" required>
+                  </div>
+                  <div class="col-4">
+                    <input id="uniNombre" type="text" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="Nombre unidad" required>
+                  </div>
+                  <div class="col-3">
+                    <input id="uniMicro" type="text" class="form-control form-control-sm bg-dark text-light border-secondary" value="ESP8266" placeholder="MCU">
+                  </div>
+                  <div class="col-3">
+                    <select id="uniEstadoCom" class="form-select form-select-sm bg-dark text-light border-secondary">
+                      <option value="disponible">Disponible</option>
+                      <option value="exhibicion">Exhibición</option>
+                      <option value="vendido">Vendido</option>
+                      <option value="inactivo">Inactivo</option>
+                    </select>
+                  </div>
+                  <div class="col-2">
+                    <button type="submit" class="btn btn-info btn-sm w-100 fw-bold" id="btnGuardarUnidad">Alta</button>
+                  </div>
+                </div>
+              </form>
+
+              <div class="admin-card mb-2">
+                <div class="row g-1 mb-2">
+                  <div class="col-6">
+                    <input id="uniSearchInput" type="search" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="Serie, nombre o dueño...">
+                  </div>
+                  <div class="col-4">
+                    <select id="uniEstadoFilter" class="form-select form-select-sm bg-dark text-light border-secondary">
+                      <option value="">Todos estados</option>
+                      <option value="disponible">Disponible</option>
+                      <option value="exhibicion">Exhibición</option>
+                      <option value="vendido">Vendido</option>
+                      <option value="inactivo">Inactivo</option>
+                    </select>
+                  </div>
+                  <div class="col-2">
+                    <button id="btnBuscarUnidades" class="btn btn-outline-info btn-sm w-100" type="button" aria-label="Buscar unidades"><i class="bi bi-search"></i></button>
+                  </div>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-dark table-sm align-middle mb-0" style="font-size: 0.68rem;">
+                    <thead><tr class="text-secondary"><th>ID</th><th>Serie / Nombre</th><th>Modelo</th><th>Estado</th><th>Dueño</th><th>WSS</th><th class="text-end">Acción</th></tr></thead>
+                    <tbody id="adminUnidadesBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- C4: CLIENTES Y ASIGNACIÓN COMERCIAL -->
+            <div id="crudClientes" class="d-none">
+              <form id="formAdminCliente" class="admin-card mb-2">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <span class="fw-bold text-info small" id="cliFormTitulo">Alta de Comprador</span>
+                  <button id="btnCancelarCliente" type="button" class="btn btn-link text-secondary p-0 small d-none" style="font-size:0.7rem;">Cancelar edición</button>
+                </div>
+                <input type="hidden" id="cliId">
+                <div class="row g-2 align-items-center">
+                  <div class="col-5">
+                    <input id="cliUsername" type="text" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="Usuario (sin espacios)" required>
+                  </div>
+                  <div class="col-7">
+                    <input id="cliNombre" type="text" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="Nombre completo" required>
+                  </div>
+                  <div class="col-5">
+                    <input id="cliEmail" type="email" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="Correo electrónico" required>
+                  </div>
+                  <div class="col-3">
+                    <input id="cliTelefono" type="text" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="Teléfono">
+                  </div>
+                  <div class="col-4">
+                    <input id="cliPassword" type="password" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="Contraseña (6+)" minlength="6" required>
+                  </div>
+                  <div class="col-6">
+                    <label class="form-check small text-light mb-0">
+                      <input id="cliActivo" type="checkbox" class="form-check-input" checked> Cuenta activa
+                    </label>
+                  </div>
+                  <div class="col-6">
+                    <button type="submit" class="btn btn-info btn-sm w-100 fw-bold" id="btnGuardarCliente">Crear Comprador</button>
+                  </div>
+                </div>
+              </form>
+
+              <form id="formAdminAsignacion" class="admin-card mb-2">
+                <div class="fw-bold text-warning small mb-1">Asignar / Reasignar Unidad a Comprador</div>
+                <div class="row g-2">
+                  <div class="col-5">
+                    <select id="asigUnidadId" class="form-select form-select-sm bg-dark text-light border-secondary" required></select>
+                  </div>
+                  <div class="col-4">
+                    <select id="asigClienteId" class="form-select form-select-sm bg-dark text-light border-secondary" required></select>
+                  </div>
+                  <div class="col-3">
+                    <button type="submit" class="btn btn-warning btn-sm w-100 fw-bold text-dark">Asignar</button>
+                  </div>
+                </div>
+                <small class="text-secondary d-block mt-1" style="font-size:0.64rem;">Al reasignar, el propietario anterior pierde acceso REST/WSS de inmediato y se conserva el historial.</small>
+              </form>
+
+              <div class="admin-card">
+                <div class="d-flex gap-2 mb-2">
+                  <input id="cliSearchInput" type="search" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="Buscar cliente por usuario, nombre o correo...">
+                  <button id="btnBuscarClientes" class="btn btn-outline-info btn-sm" type="button" aria-label="Buscar clientes"><i class="bi bi-search"></i></button>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-dark table-sm align-middle mb-0" style="font-size: 0.7rem;">
+                    <thead><tr class="text-secondary"><th>Usuario</th><th>Nombre / Correo</th><th>Rol</th><th>Unid.</th><th>Estado</th><th class="text-end">Acción</th></tr></thead>
+                    <tbody id="adminClientesBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- C5: BITÁCORA DE AUDITORÍA -->
+            <div id="crudAuditoria" class="d-none">
+              <div class="admin-card">
+                <div class="row g-1 align-items-center mb-2">
+                  <div class="col-5">
+                    <input id="auditAccionInput" type="search" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="Filtrar acción...">
+                  </div>
+                  <div class="col-4">
+                    <select id="auditResultadoFilter" class="form-select form-select-sm bg-dark text-light border-secondary">
+                      <option value="">Todos</option>
+                      <option value="EXITO">EXITO</option>
+                      <option value="DENEGADO">DENEGADO</option>
+                      <option value="ERROR">ERROR</option>
+                    </select>
+                  </div>
+                  <div class="col-3">
+                    <button id="btnRefrescarAuditoria" class="btn btn-outline-info btn-sm w-100" type="button"><i class="bi bi-arrow-clockwise me-1"></i>Filtrar</button>
+                  </div>
+                </div>
+                <div class="table-responsive">
+                  <table class="table table-dark table-sm mb-0" style="font-size: 0.67rem;">
+                    <thead><tr class="text-secondary"><th>Fecha/Hora</th><th>Actor</th><th>Acción</th><th>Recurso</th><th>Estado</th><th>Detalle</th></tr></thead>
+                    <tbody id="adminAuditoriaBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+
         </div>
       </div>
     </div>
@@ -294,8 +709,41 @@
 
   <!-- PIE DE PÁGINA (CRÉDITOS OFICIALES) -->
   <footer class="app-footer">
-    <span>Telemetría y Control IoT · <strong>Nadia Itzel Salvador</strong> · 2026</span>
+    <span>Desarrollado por <strong>Nadia Itzel Salvador</strong> · 2026</span>
   </footer>
+
+  <!-- MODAL DE INICIO DE SESIÓN -->
+  <div class="modal fade" id="modalLogin" tabindex="-1" aria-labelledby="modalLoginLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content bg-dark text-light border-info">
+        <div class="modal-header border-secondary py-2">
+          <h5 class="modal-title h6 text-info fw-bold" id="modalLoginLabel">
+            <i class="bi bi-shield-lock me-1"></i>Iniciar Sesión IoT
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <form id="formLogin" class="modal-body">
+          <div id="loginErrorBox" class="alert alert-danger py-1 px-2 small d-none" role="alert"></div>
+          <div class="mb-2">
+            <label for="loginUsername" class="form-label small text-secondary mb-0">Usuario</label>
+            <input id="loginUsername" type="text" class="form-control form-control-sm bg-black text-light border-secondary" autocomplete="username" required>
+          </div>
+          <div class="mb-3">
+            <label for="loginPassword" class="form-label small text-secondary mb-0">Contraseña</label>
+            <input id="loginPassword" type="password" class="form-control form-control-sm bg-black text-light border-secondary" autocomplete="current-password" required>
+          </div>
+          <button type="submit" class="btn btn-info btn-sm w-100 fw-bold text-dark" id="btnSubmitLogin">
+            Entrar a la Plataforma
+          </button>
+          <div class="text-center mt-2">
+            <small class="text-secondary" style="font-size: 0.66rem;">
+              ¿Cliente potencial? Cierra esta ventana para explorar el catálogo en modo Invitado.
+            </small>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
   <div class="toast-container position-fixed bottom-0 end-0 p-3">
     <div id="liveToast" class="toast bg-dark text-light border-secondary" role="alert" aria-live="assertive" aria-atomic="true">
