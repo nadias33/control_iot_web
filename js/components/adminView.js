@@ -3,11 +3,14 @@ import { authStore } from '../api/authStore.js';
 import { wsManager } from '../websocket/wsManager.js';
 
 export class AdminView {
-  constructor({ onLog, onSelectVehicle, onDemosChanged, onGoToControl }) {
+  constructor({ onLog, onSelectVehicle, onDemosChanged, onGoToControl, onOpenLogin, onEnterGuestMode }) {
     this.onLog = onLog || (() => {});
     this.onSelectVehicle = onSelectVehicle || (() => {});
     this.onDemosChanged = onDemosChanged || (() => {});
     this.onGoToControl = onGoToControl || (() => {});
+    this.onOpenLogin = onOpenLogin || (() => {});
+    this.onEnterGuestMode = onEnterGuestMode || (() => {});
+    this.lastRoleIdentity = null;
 
     this.alertBox = document.getElementById('adminAlertBox');
     this.subButtons = document.querySelectorAll('#adminRoleSubnav .admin-tab-btn');
@@ -80,6 +83,29 @@ export class AdminView {
       btn.addEventListener('click', () => this.switchSection(btn.dataset.section));
     });
 
+    // Portal de Acceso Multi-Rol (Usuario / Administrador / Invitado)
+    document.getElementById('btnPortalLoginUsuario')?.addEventListener('click', () => this.onOpenLogin('USUARIO'));
+    document.getElementById('btnPortalLoginAdmin')?.addEventListener('click', () => this.onOpenLogin('ADMINISTRADOR'));
+    document.getElementById('btnPortalActivarInvitado')?.addEventListener('click', () => {
+      const alias = document.getElementById('invAliasInput')?.value?.trim();
+      if (alias) authStore.setGuestAlias(alias);
+      this.switchSection('invitado');
+      this.onLog(`[INVITADO] Catálogo de exhibición activo como "${authStore.getGuestAlias()}".`);
+    });
+    const invAliasEl = document.getElementById('invAliasInput');
+    invAliasEl?.addEventListener('change', () => {
+      if (invAliasEl.value.trim()) authStore.setGuestAlias(invAliasEl.value);
+    });
+    document.getElementById('btnAdminCambiarRol')?.addEventListener('click', () => {
+      this.onOpenLogin(authStore.getRole() === 'ADMINISTRADOR' ? 'USUARIO' : 'ADMINISTRADOR');
+    });
+    document.getElementById('btnSwitchOtherAccount')?.addEventListener('click', () => {
+      this.onOpenLogin(authStore.getRole() === 'ADMINISTRADOR' ? 'USUARIO' : 'ADMINISTRADOR');
+    });
+    document.getElementById('btnSwitchToInvitado')?.addEventListener('click', () => {
+      this.onEnterGuestMode(authStore.getGuestAlias());
+    });
+
     // Subtabs CRUD Admin
     this.crudTabs.forEach(btn => {
       btn.addEventListener('click', () => this.#switchCrudTab(btn.dataset.crud));
@@ -150,12 +176,38 @@ export class AdminView {
 
   syncRoleVisibility() {
     const rol = authStore.getRole();
+    const user = authStore.getUser();
+    const identityKey = `${rol}:${user?.id_usuario || 'guest'}`;
+    if (this.lastRoleIdentity !== null && this.lastRoleIdentity !== identityKey) {
+      this.comandosCache.clear();
+    }
+    this.lastRoleIdentity = identityKey;
+
     const btnInv = document.getElementById('btnSubInvitado');
     const btnUsr = document.getElementById('btnSubUsuario');
     const btnAdm = document.getElementById('btnSubAdmin');
     const tipoWrap = document.getElementById('editDemoTipoWrapper');
     if (tipoWrap) {
       tipoWrap.classList.toggle('d-none', rol !== 'ADMINISTRADOR');
+    }
+
+    const portalGuest = document.getElementById('rolePortalGuest');
+    const portalAuth = document.getElementById('rolePortalAuth');
+    const portalAuthText = document.getElementById('rolePortalAuthText');
+    const invAliasEl = document.getElementById('invAliasInput');
+    if (invAliasEl && !invAliasEl.value.trim()) {
+      invAliasEl.value = authStore.getGuestAlias();
+    }
+
+    if (user) {
+      portalGuest?.classList.add('d-none');
+      portalAuth?.classList.remove('d-none');
+      if (portalAuthText) {
+        portalAuthText.innerHTML = `<span class="badge ${rol === 'ADMINISTRADOR' ? 'bg-warning text-dark' : 'bg-info text-dark'} me-1">${this.#esc(rol)}</span> <strong>${this.#esc(user.nombre_completo)}</strong> (@${this.#esc(user.username)})`;
+      }
+    } else {
+      portalGuest?.classList.remove('d-none');
+      portalAuth?.classList.add('d-none');
     }
 
     if (rol === 'ADMINISTRADOR') {
@@ -302,15 +354,24 @@ export class AdminView {
   async #solicitarReservaInvitado(idVehiculo, nombreUnidad) {
     try {
       this.#showAlert('');
+      if (authStore.getToken()) {
+        await api.logout().catch(() => {});
+        authStore.clearSession();
+      }
+      const aliasInput = document.getElementById('invAliasInput')?.value?.trim();
+      const alias = aliasInput || authStore.getGuestAlias() || 'Invitado Web';
+      authStore.setGuestAlias(alias);
+
       const resp = await api.createInvitadoReserva({
         id_vehiculo: idVehiculo,
-        alias_invitado: 'Invitado Web',
+        alias_invitado: alias,
         duracion_segundos: 120
       });
       authStore.setGuestSession(resp);
+      this.syncRoleVisibility();
       this.#renderReservaActiva();
       this.onSelectVehicle(idVehiculo, `${nombreUnidad} (Exhibición)`);
-      this.onLog(`[INVITADO] Reserva temporal asignada sobre unidad #${idVehiculo} (120s).`);
+      this.onLog(`[INVITADO] Reserva temporal asignada sobre unidad #${idVehiculo} (120s) para ${alias}.`);
       await this.cargarCatalogoPublico();
     } catch (err) {
       this.#showAlert(err.message, 'danger');
@@ -396,7 +457,7 @@ export class AdminView {
   #renderMisVehiculos(unidades) {
     if (!this.usrVehiculosList || !this.editDemoVehiculo) return;
     if (!unidades || unidades.length === 0) {
-      this.usrVehiculosList.innerHTML = '<div class="text-secondary small">No tienes unidades físicas asignadas todavía.</div>';
+      this.usrVehiculosList.innerHTML = '<div class="text-secondary small">No tienes unidades físicas asignadas todavía. Un Administrador puede asignarte una en <strong>Clientes &amp; Asignar</strong>, o puedes probar la unidad disponible en <strong>Exhibición</strong>.</div>';
       this.editDemoVehiculo.innerHTML = '<option value="">Sin unidades</option>';
       return;
     }
@@ -779,17 +840,19 @@ export class AdminView {
 
     title.textContent = `Capacidades: ${mod.nombre_modelo} (${mod.codigo_modelo})`;
     const base = [
-      { codigo_comando: 1, nombre_comando: 'AVANZAR', descripcion: 'Avance frontal' },
-      { codigo_comando: 2, nombre_comando: 'RETROCEDER', descripcion: 'Retroceso' },
-      { codigo_comando: 3, nombre_comando: 'CABINA_IZQ', descripcion: 'Giro cabina izquierda' },
-      { codigo_comando: 4, nombre_comando: 'CABINA_DER', descripcion: 'Giro cabina derecha' },
-      { codigo_comando: 5, nombre_comando: 'GIRAR_DER', descripcion: 'Giro derecha' },
-      { codigo_comando: 6, nombre_comando: 'GIRAR_IZQ', descripcion: 'Giro izquierda' },
-      { codigo_comando: 7, nombre_comando: 'SUBIR_BRAZO', descripcion: 'Elevar brazo' },
-      { codigo_comando: 8, nombre_comando: 'BAJAR_BRAZO', descripcion: 'Bajar brazo' },
-      { codigo_comando: 9, nombre_comando: 'DETENER', descripcion: 'Parada prioritaria obligatoria' },
-      { codigo_comando: 10, nombre_comando: 'ABRIR_PALA', descripcion: 'Abrir pala' },
-      { codigo_comando: 11, nombre_comando: 'CERRAR_PALA', descripcion: 'Cerrar pala' }
+      { codigo_comando: 1, nombre_comando: 'AVANZAR', descripcion: 'Avance frontal de orugas (Forward)' },
+      { codigo_comando: 2, nombre_comando: 'RETROCEDER', descripcion: 'Retroceso de orugas (Backward)' },
+      { codigo_comando: 3, nombre_comando: 'GIRAR_IZQUIERDA', descripcion: 'Giro de orugas a la izquierda (Track left)' },
+      { codigo_comando: 4, nombre_comando: 'GIRAR_DERECHA', descripcion: 'Giro de orugas a la derecha (Track right)' },
+      { codigo_comando: 5, nombre_comando: 'SUBIR_GARRA', descripcion: 'Subir / descargar garra (Uninstall)' },
+      { codigo_comando: 6, nombre_comando: 'BAJAR_GARRA', descripcion: 'Cavar / bajar garra (Dig)' },
+      { codigo_comando: 7, nombre_comando: 'LUZ', descripcion: 'Encender o apagar luces (Light ON/OFF)' },
+      { codigo_comando: 8, nombre_comando: 'SONIDO', descripcion: 'Encender o apagar música (Music ON/OFF)' },
+      { codigo_comando: 9, nombre_comando: 'DETENER', descripcion: 'Parada prioritaria obligatoria (STOP)' },
+      { codigo_comando: 10, nombre_comando: 'CABINA_IZQUIERDA', descripcion: 'Girar cabina a la izquierda (Turntable left)' },
+      { codigo_comando: 11, nombre_comando: 'CABINA_DERECHA', descripcion: 'Girar cabina a la derecha (Turntable right)' },
+      { codigo_comando: 12, nombre_comando: 'VELOCIDAD', descripcion: 'Alternar velocidad 50% / 100% (Speed)' },
+      { codigo_comando: 13, nombre_comando: 'DEMO_AUTO', descripcion: 'Demostración automática 1 tecla (One-key demo)' }
     ];
     const existentes = new Map((mod.comandos || []).map(c => [Number(c.codigo_comando), c]));
 

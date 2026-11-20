@@ -82,90 +82,104 @@
   <main class="app-main">
     
     <!-- ================================================================= -->
-    <!-- VISTA 1: CONTROL TELEMÁTICO (DOBLE SLIDER CON MUELLE + STOP)      -->
+    <!-- VISTA 1: CONTROL TELEMÁTICO (DUAL JOYSTICK 360° + 4 SWITCHES)     -->
     <!-- ================================================================= -->
     <div id="viewControl">
       <div class="rc-chassis">
-        
-        <!-- 1. GATILLOS AUXILIARES SUPERIORES (CABINA L1/R1) -->
-        <div class="trigger-bar">
-          <button class="trigger-fader-btn btn-cmd" data-codigo="3" data-nombre="CABINA_IZQ" type="button">
-            <i class="bi bi-arrow-counterclockwise me-1"></i> [L1] CABINA IZQ
-          </button>
-          <button class="trigger-fader-btn btn-cmd" data-codigo="4" data-nombre="CABINA_DER" type="button">
-            [R1] CABINA DER <i class="bi bi-arrow-clockwise ms-1"></i>
-          </button>
-        </div>
 
-        <!-- 2. HUD DE DIRECCIÓN Y ESTADO ACTIVO -->
+        <!-- 1. HUD DE DIRECCIÓN, ESTADO ACTIVO Y CONTEO DE MOVIMIENTOS -->
         <div class="hud-strip">
-          <div class="d-flex justify-content-between align-items-center">
-            <span class="badge bg-dark border border-secondary text-info font-monospace small" id="txtDireccionActual">
+          <div class="d-flex justify-content-between align-items-center gap-1">
+            <span class="badge bg-dark border border-secondary text-info font-monospace small text-truncate" id="txtDireccionActual">
               REPOSO (CENTRO)
             </span>
-            <span class="badge bg-info bg-opacity-25 text-info border border-info border-opacity-25 small" id="badgeOperacion">
-              SISTEMA LISTO
-            </span>
+            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+              <span id="badgeMovimientosCount" class="badge bg-dark border border-secondary text-info font-monospace" style="font-size: 0.6rem;">12 mov. + STOP</span>
+              <span class="badge bg-info bg-opacity-25 text-info border border-info border-opacity-25 small" id="badgeOperacion">
+                SISTEMA LISTO
+              </span>
+            </div>
           </div>
         </div>
 
-        <!-- 3. CUERPO DUAL: DOS DESLIZADORES TÁCTILES CON CENTRADO AUTOMÁTICO -->
-        <div class="sliders-stage">
-          
-          <!-- SLIDER IZQUIERDO: TRACCIÓN (AVANZAR / DETENER / RETROCEDER) -->
-          <div class="slider-column">
-            <div class="slider-header-label">
-              <i class="bi bi-speedometer2"></i> Tracción
-            </div>
-            <span class="slider-guide-label text-info">▲ Adelante</span>
-            
-            <div id="sliderTrackTraction" class="slider-vertical-track" title="Desliza arriba o abajo para avanzar/retroceder">
-              <div class="track-center-line"></div>
-              <div class="track-center-notch"></div>
-              <div id="sliderThumbTraction" class="slider-fader-thumb"></div>
-            </div>
+        <!-- 2. CONSOLA DUAL JOYSTICK (8 MOVIMIENTOS EN PALANCAS + STOP CENTRAL) -->
+        <div class="dual-joystick-stage">
 
-            <span class="slider-guide-label text-warning">▼ Atrás</span>
-            <span id="sliderValTraction" class="slider-value-badge badge bg-dark border border-secondary text-secondary">0%</span>
+          <!-- JOYSTICK IZQUIERDO: CHASIS & CABINA -->
+          <div class="joy-pod joy-pod-left">
+            <div class="joy-pod-title">
+              <i class="bi bi-arrows-move"></i> Chasis · Cabina
+            </div>
+            <div id="joyLeftZone" class="joy-ring" data-dir="NEUTRAL">
+              <span class="joy-rim-label joy-rim-up" data-dir-label="UP">▲ Avanzar</span>
+              <span class="joy-rim-label joy-rim-down" data-dir-label="DOWN">▼ Atrás</span>
+              <span class="joy-rim-label joy-rim-left" data-dir-label="LEFT">◀ Cab.</span>
+              <span class="joy-rim-label joy-rim-right" data-dir-label="RIGHT">Cab. ▶</span>
+              <div class="joy-cross-h"></div>
+              <div class="joy-cross-v"></div>
+              <div class="joy-inner-guide"></div>
+              <div id="joyLeftHandle" class="joy-knob"></div>
+            </div>
           </div>
 
-          <!-- COLUMNA CENTRAL: PARADA DE EMERGENCIA Y HUD DIGITAL -->
-          <div class="center-control-column">
+          <!-- CONSOLA CENTRAL: VISOR DIGITAL + BOTÓN STOP -->
+          <div class="joy-center-pod">
             <div class="digital-hud-box">
-              <span class="digital-hud-title">Velocidad / Giro</span>
+              <span class="digital-hud-title">Comando Activo</span>
               <span class="digital-hud-value" id="hudDigitalCenter">NEUTRO</span>
             </div>
 
-            <!-- BOTÓN PRIORITARIO STOP (EMERGENCY STOP) -->
             <button id="btnDetener" class="emergency-stop-btn shadow" type="button" title="Parada de Emergencia Inmediata">
               <i class="bi bi-exclamation-octagon-fill"></i>
               <span>STOP</span>
             </button>
 
-            <div class="digital-hud-box">
-              <span class="digital-hud-title">Transmisión</span>
-              <span class="text-info fw-bold font-monospace" style="font-size: 0.65rem;">WSS + REST</span>
-            </div>
+            <div class="joy-meta-tag font-monospace">WSS · 12 CH</div>
           </div>
 
-          <!-- SLIDER DERECHO: DIRECCIÓN (GIRAR IZQ / RECTO / GIRAR DER) -->
-          <div class="slider-column">
-            <div class="slider-header-label">
-              <i class="bi bi-compass"></i> Dirección
+          <!-- JOYSTICK DERECHO: ORUGAS & GARRA -->
+          <div class="joy-pod joy-pod-right">
+            <div class="joy-pod-title joy-pod-title-amber">
+              <i class="bi bi-tools"></i> Orugas · Garra
             </div>
-            <span class="slider-guide-label text-info">◀ Giro Izq</span>
-
-            <div id="sliderTrackSteering" class="slider-vertical-track" title="Desliza para girar el vehículo">
-              <div class="track-center-line"></div>
-              <div class="track-center-notch"></div>
-              <div id="sliderThumbSteering" class="slider-fader-thumb slider-fader-thumb-amber"></div>
+            <div id="joyRightZone" class="joy-ring joy-ring-amber" data-dir="NEUTRAL">
+              <span class="joy-rim-label joy-rim-up" data-dir-label="UP">▲ Subir</span>
+              <span class="joy-rim-label joy-rim-down" data-dir-label="DOWN">▼ Cavar</span>
+              <span class="joy-rim-label joy-rim-left" data-dir-label="LEFT">◀ Oruga</span>
+              <span class="joy-rim-label joy-rim-right" data-dir-label="RIGHT">Oruga ▶</span>
+              <div class="joy-cross-h"></div>
+              <div class="joy-cross-v"></div>
+              <div class="joy-inner-guide"></div>
+              <div id="joyRightHandle" class="joy-knob joy-knob-amber"></div>
             </div>
-
-            <span class="slider-guide-label text-warning">Giro Der ▶</span>
-            <span id="sliderValSteering" class="slider-value-badge badge bg-dark border border-secondary text-secondary">0%</span>
           </div>
 
         </div>
+
+        <!-- 3. DOCK MINIMALISTA DE 4 SWITCHES AUXILIARES (CON LED DE ESTADO) -->
+        <div class="fn-switch-dock">
+          <button class="fn-switch btn-cmd" data-cmd-key="LUZ" data-codigo="7" data-nombre="LUZ" type="button">
+            <span class="sw-led"></span>
+            <i class="bi bi-lightbulb-fill"></i>
+            <span>Luz</span>
+          </button>
+          <button class="fn-switch btn-cmd" data-cmd-key="SONIDO" data-codigo="8" data-nombre="SONIDO" type="button">
+            <span class="sw-led"></span>
+            <i class="bi bi-music-note-beamed"></i>
+            <span>Música</span>
+          </button>
+          <button class="fn-switch fn-switch-amber btn-cmd" data-cmd-key="VELOCIDAD" data-codigo="12" data-nombre="VELOCIDAD" type="button">
+            <span class="sw-led"></span>
+            <i class="bi bi-speedometer"></i>
+            <span>Vel.</span>
+          </button>
+          <button class="fn-switch btn-cmd" data-cmd-key="DEMO_AUTO" data-codigo="13" data-nombre="DEMO_AUTO" type="button">
+            <span class="sw-led"></span>
+            <i class="bi bi-play-circle-fill"></i>
+            <span>Demo</span>
+          </button>
+        </div>
+        <div id="excavatorExtraRow" class="excavator-aux-row d-none"></div>
 
         <!-- 4. BARRA DE DEMOS COMPACTA -->
         <div class="demo-strip">
@@ -309,6 +323,9 @@
           <button class="admin-tab-btn d-none" data-section="admin" id="btnSubAdmin" type="button">
             <i class="bi bi-speedometer2 me-1"></i>Gestión Comercial
           </button>
+          <button class="admin-tab-btn ms-auto" id="btnAdminCambiarRol" type="button">
+            <i class="bi bi-arrow-left-right me-1"></i>Cambiar rol
+          </button>
         </div>
 
         <!-- Alerta de estado o error -->
@@ -316,6 +333,64 @@
 
         <!-- Contenedor con scroll interno responsivo -->
         <div class="admin-scroll-body">
+
+          <!-- PORTAL DE ACCESO POR ROL (USUARIO · ADMINISTRADOR · INVITADO) -->
+          <div id="adminRolePortal" class="role-portal-card mb-2">
+            <div id="rolePortalGuest">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small fw-bold text-info text-uppercase" style="font-size: 0.7rem;">
+                  <i class="bi bi-people-fill me-1"></i>Acceso por Rol · Plataforma IoT
+                </span>
+                <span class="badge bg-secondary text-uppercase" style="font-size: 0.58rem;">Sesión: Invitado</span>
+              </div>
+              <div class="row g-2">
+                <div class="col-12 col-sm-4">
+                  <div class="role-option-tile h-100">
+                    <div class="fw-bold text-info small mb-1"><i class="bi bi-person-badge me-1"></i>Usuario (Comprador)</div>
+                    <p class="text-secondary mb-2" style="font-size: 0.66rem;">Controla tus vehículos asignados, habilita soporte y diseña DEMOs privadas.</p>
+                    <button id="btnPortalLoginUsuario" type="button" class="btn btn-outline-info btn-sm w-100 fw-bold">
+                      <i class="bi bi-box-arrow-in-right me-1"></i>Ingresar como Usuario
+                    </button>
+                  </div>
+                </div>
+                <div class="col-12 col-sm-4">
+                  <div class="role-option-tile h-100">
+                    <div class="fw-bold text-warning small mb-1"><i class="bi bi-shield-lock me-1"></i>Administrador</div>
+                    <p class="text-secondary mb-2" style="font-size: 0.66rem;">Gestiona modelos, inventario físico, clientes, asignaciones y bitácora.</p>
+                    <button id="btnPortalLoginAdmin" type="button" class="btn btn-outline-warning btn-sm w-100 fw-bold">
+                      <i class="bi bi-key me-1"></i>Ingresar como Admin
+                    </button>
+                  </div>
+                </div>
+                <div class="col-12 col-sm-4">
+                  <div class="role-option-tile role-option-tile-active h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <span class="fw-bold text-success small"><i class="bi bi-stars me-1"></i>Invitado</span>
+                      <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25" style="font-size: 0.56rem;">Activo</span>
+                    </div>
+                    <input id="invAliasInput" type="text" class="form-control form-control-sm bg-dark text-light border-secondary mb-2" maxlength="40" placeholder="Tu nombre / alias">
+                    <button id="btnPortalActivarInvitado" type="button" class="btn btn-success btn-sm w-100 fw-bold">
+                      <i class="bi bi-shop me-1"></i>Usar Exhibición
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="rolePortalAuth" class="d-none">
+              <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <span class="small text-light" id="rolePortalAuthText">Sesión activa</span>
+                <div class="d-flex gap-1">
+                  <button id="btnSwitchOtherAccount" type="button" class="btn btn-outline-info btn-sm py-0 px-2" style="font-size: 0.7rem;">
+                    <i class="bi bi-arrow-left-right me-1"></i>Cambiar cuenta
+                  </button>
+                  <button id="btnSwitchToInvitado" type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" style="font-size: 0.7rem;">
+                    <i class="bi bi-stars me-1"></i>Entrar como Invitado
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <!-- SECCIÓN A: INVITADO (CATÁLOGO Y PRUEBA TEMPORAL LIMITADA) -->
           <section id="panelInvitado" aria-labelledby="btnSubInvitado">
@@ -722,25 +797,51 @@
           </h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
         </div>
-        <form id="formLogin" class="modal-body">
-          <div id="loginErrorBox" class="alert alert-danger py-1 px-2 small d-none" role="alert"></div>
-          <div class="mb-2">
-            <label for="loginUsername" class="form-label small text-secondary mb-0">Usuario</label>
-            <input id="loginUsername" type="text" class="form-control form-control-sm bg-black text-light border-secondary" autocomplete="username" required>
+        <div class="modal-body p-3">
+          <div class="login-role-pills mb-2" id="loginRoleTabs" role="tablist" aria-label="Tipo de acceso">
+            <button type="button" class="login-role-pill active" data-role-tab="USUARIO">
+              <i class="bi bi-person-badge me-1"></i>Usuario
+            </button>
+            <button type="button" class="login-role-pill" data-role-tab="ADMINISTRADOR">
+              <i class="bi bi-shield-lock me-1"></i>Admin
+            </button>
+            <button type="button" class="login-role-pill" data-role-tab="INVITADO">
+              <i class="bi bi-stars me-1"></i>Invitado
+            </button>
           </div>
-          <div class="mb-3">
-            <label for="loginPassword" class="form-label small text-secondary mb-0">Contraseña</label>
-            <input id="loginPassword" type="password" class="form-control form-control-sm bg-black text-light border-secondary" autocomplete="current-password" required>
+
+          <div id="loginRoleHint" class="alert alert-dark border border-secondary py-1 px-2 mb-2 small text-secondary" style="font-size: 0.68rem;">
+            Acceso de cliente comprador (ej. <code>comprador1</code>) para operar tus vehículos asignados y editar DEMOs.
           </div>
-          <button type="submit" class="btn btn-info btn-sm w-100 fw-bold text-dark" id="btnSubmitLogin">
-            Entrar a la Plataforma
-          </button>
-          <div class="text-center mt-2">
-            <small class="text-secondary" style="font-size: 0.66rem;">
-              ¿Cliente potencial? Cierra esta ventana para explorar el catálogo en modo Invitado.
-            </small>
+
+          <form id="formLogin">
+            <div id="loginErrorBox" class="alert alert-danger py-1 px-2 small d-none" role="alert"></div>
+            <div class="mb-2">
+              <label for="loginUsername" class="form-label small text-secondary mb-0">Usuario</label>
+              <input id="loginUsername" type="text" class="form-control form-control-sm bg-black text-light border-secondary" placeholder="Ej. comprador1" autocomplete="username" required>
+            </div>
+            <div class="mb-3">
+              <label for="loginPassword" class="form-label small text-secondary mb-0">Contraseña</label>
+              <input id="loginPassword" type="password" class="form-control form-control-sm bg-black text-light border-secondary" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn btn-info btn-sm w-100 fw-bold text-dark" id="btnSubmitLogin">
+              Entrar como Usuario
+            </button>
+          </form>
+
+          <div id="modalGuestPane" class="d-none">
+            <div class="mb-2">
+              <label for="loginGuestAlias" class="form-label small text-secondary mb-0">Tu nombre o alias de visitante</label>
+              <input id="loginGuestAlias" type="text" class="form-control form-control-sm bg-black text-light border-secondary" placeholder="Ej. Visitante IoT" maxlength="40">
+            </div>
+            <p class="text-secondary small mb-3" style="font-size: 0.68rem;">
+              Explora los modelos disponibles y reserva una unidad de exhibición en sesión exclusiva temporal de hasta 120 segundos.
+            </p>
+            <button type="button" class="btn btn-success btn-sm w-100 fw-bold" id="btnConfirmGuestMode">
+              <i class="bi bi-stars me-1"></i>Entrar como Invitado
+            </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   </div>

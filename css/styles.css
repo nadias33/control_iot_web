@@ -184,178 +184,227 @@ main.app-main.admin-wide {
 .spin { animation: spin-anim 1.2s infinite linear; }
 @keyframes spin-anim { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-/* Botones Auxiliares / Gatillos de Cabina */
-.trigger-bar {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
-.trigger-fader-btn {
-  flex: 1;
-  background: linear-gradient(180deg, #132448 0%, #0a142c 100%);
-  border: 1px solid rgba(0, 240, 255, 0.3);
-  border-radius: 8px;
-  color: #7dd3fc;
-  font-weight: 700;
-  font-size: 0.7rem;
-  padding: 4px 6px;
-  transition: all 0.12s ease;
-}
-
-.trigger-fader-btn:active {
-  background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
-  color: #fff;
-  transform: translateY(1px);
-}
-
 /* ==========================================================================
-   ZONA CENTRAL: DUAL SLIDERS (DESLIZADORES TÁCTILES)
+   CONSOLA DUAL JOYSTICK 360° + SWITCHES MINIMALISTAS (NO. 555-104)
    ========================================================================== */
-.sliders-stage {
+.dual-joystick-stage {
   flex: 1 1 auto;
   min-height: 0;
-  display: flex;
-  align-items: stretch;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr 94px 1fr;
+  align-items: center;
   gap: 8px;
   margin: 4px 0;
 }
 
-/* Columna de cada Slider */
-.slider-column {
-  flex: 1;
+.joy-pod {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   background: rgba(2, 6, 17, 0.45);
-  border: 1px solid rgba(0, 240, 255, 0.15);
+  border: 1px solid rgba(0, 240, 255, 0.14);
   border-radius: 14px;
   padding: 6px 4px;
+  height: 100%;
+  min-height: 0;
 }
 
-.slider-header-label {
-  font-size: 0.65rem;
+.joy-pod-right {
+  border-color: rgba(245, 158, 11, 0.16);
+}
+
+.joy-pod-title {
+  font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--neon-cyan);
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
+  margin-bottom: 4px;
 }
 
-.slider-guide-label {
-  font-size: 0.58rem;
-  font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-  font-family: monospace;
+.joy-pod-title-amber {
+  color: var(--neon-amber);
 }
 
-/* Track / Riel del Deslizador Vertical */
-.slider-vertical-track {
+.joy-ring {
   position: relative;
-  width: 52px;
-  flex: 1 1 auto;
-  min-height: 120px;
-  max-height: 180px;
-  background: #030712;
-  border: 2px solid rgba(0, 240, 255, 0.3);
-  border-radius: 26px;
-  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.8), 0 0 8px rgba(0, 240, 255, 0.1);
+  width: clamp(134px, 38vw, 168px);
+  height: clamp(134px, 38vw, 168px);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, #09152c 0%, #030816 70%, #02050d 100%);
+  border: 2px solid rgba(0, 240, 255, 0.28);
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.88), 0 0 12px rgba(0, 240, 255, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
   touch-action: none;
   cursor: pointer;
-  margin: 4px 0;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.slider-vertical-track.track-active {
-  border-color: var(--neon-cyan);
-  box-shadow: inset 0 0 16px rgba(0, 240, 255, 0.3), 0 0 15px rgba(0, 240, 255, 0.25);
+.joy-ring.active {
+  border-color: rgba(0, 240, 255, 0.72);
+  box-shadow: inset 0 0 24px rgba(0, 240, 255, 0.16), 0 0 18px rgba(0, 240, 255, 0.25);
 }
 
-/* Línea central guía */
-.track-center-line {
+.joy-ring-amber {
+  border-color: rgba(245, 158, 11, 0.3);
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.88), 0 0 12px rgba(245, 158, 11, 0.08);
+}
+
+.joy-ring-amber.active {
+  border-color: rgba(245, 158, 11, 0.78);
+  box-shadow: inset 0 0 24px rgba(245, 158, 11, 0.16), 0 0 18px rgba(245, 158, 11, 0.25);
+}
+
+.joy-cross-h,
+.joy-cross-v {
   position: absolute;
-  width: 2px;
-  height: 80%;
-  background: rgba(0, 240, 255, 0.2);
+  background: rgba(148, 163, 184, 0.12);
   pointer-events: none;
 }
 
-.track-center-notch {
+.joy-cross-h {
+  width: 72%;
+  height: 1px;
+}
+
+.joy-cross-v {
+  height: 72%;
+  width: 1px;
+}
+
+.joy-inner-guide {
   position: absolute;
-  width: 100%;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.2);
-  top: 50%;
-  left: 0;
-  transform: translateY(-50%);
+  width: 44%;
+  height: 44%;
+  border-radius: 50%;
+  border: 1px dashed rgba(148, 163, 184, 0.22);
   pointer-events: none;
 }
 
-/* Thumb / Puntero deslizante ergonómico */
-.slider-fader-thumb {
+.joy-rim-label {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 44px;
-  height: 38px;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(circle at 40% 30%, #38bdf8 0%, #0284c7 50%, #034875 100%);
-  border: 2px solid #bae6fd;
-  border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.8), 0 0 10px rgba(0, 240, 255, 0.4);
-  touch-action: none;
-  cursor: grab;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.05s ease-out;
-  pointer-events: none;
-}
-
-.slider-fader-thumb::after {
-  content: '';
-  width: 18px;
-  height: 3px;
-  background: #fff;
-  border-radius: 2px;
-  box-shadow: 0 0 4px #00f0ff;
-}
-
-.slider-fader-thumb.active {
-  background: radial-gradient(circle at 40% 30%, #00f0ff 0%, #0066ff 60%, #002666 100%);
-  border-color: #fff;
-  box-shadow: 0 0 18px rgba(0, 240, 255, 0.8);
-}
-
-.slider-fader-thumb-amber {
-  background: radial-gradient(circle at 40% 30%, #fbbf24 0%, #d97706 50%, #78350f 100%);
-  border-color: #fef08a;
-}
-.slider-fader-thumb-amber.active {
-  background: radial-gradient(circle at 40% 30%, #fef08a 0%, #f59e0b 60%, #78350f 100%);
-  box-shadow: 0 0 18px rgba(245, 158, 11, 0.8);
-}
-
-.slider-value-badge {
-  font-size: 0.62rem;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #64748b;
   font-family: monospace;
+  text-transform: uppercase;
+  pointer-events: none;
+  transition: color 0.12s ease, text-shadow 0.12s ease, opacity 0.12s ease;
+  white-space: nowrap;
 }
 
-/* Columna Central: Botón STOP & Telemetría */
-.center-control-column {
-  flex: 0 0 100px;
+.joy-rim-up {
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.joy-rim-down {
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.joy-rim-left {
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.joy-rim-right {
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.joy-rim-label.is-disabled {
+  opacity: 0.2;
+}
+
+.joy-ring[data-dir="UP"] .joy-rim-up,
+.joy-ring[data-dir="DOWN"] .joy-rim-down,
+.joy-ring[data-dir="LEFT"] .joy-rim-left,
+.joy-ring[data-dir="RIGHT"] .joy-rim-right {
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.8);
+}
+
+.joy-ring-amber[data-dir="UP"] .joy-rim-up,
+.joy-ring-amber[data-dir="DOWN"] .joy-rim-down,
+.joy-ring-amber[data-dir="LEFT"] .joy-rim-left,
+.joy-ring-amber[data-dir="RIGHT"] .joy-rim-right {
+  color: #fbbf24;
+  text-shadow: 0 0 8px rgba(245, 158, 11, 0.8);
+}
+
+.joy-knob {
+  position: relative;
+  width: clamp(50px, 14vw, 58px);
+  height: clamp(50px, 14vw, 58px);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #38bdf8 0%, #0284c7 52%, #042f54 100%);
+  border: 2px solid #bae6fd;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.85), inset 0 0 8px rgba(255, 255, 255, 0.22), 0 0 12px rgba(0, 240, 255, 0.32);
+  cursor: grab;
+  touch-action: none;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.joy-knob::after {
+  content: '';
+  position: absolute;
+  inset: 11px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+}
+
+.joy-knob.returning {
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.joy-knob.active {
+  background: radial-gradient(circle at 35% 30%, #00f0ff 0%, #0066ff 60%, #002266 100%);
+  border-color: #fff;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.85);
+}
+
+.joy-knob-amber {
+  background: radial-gradient(circle at 35% 30%, #fbbf24 0%, #d97706 52%, #622a0a 100%);
+  border-color: #fef08a;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.85), inset 0 0 8px rgba(255, 255, 255, 0.22), 0 0 12px rgba(245, 158, 11, 0.32);
+}
+
+.joy-knob-amber.active {
+  background: radial-gradient(circle at 35% 30%, #fef08a 0%, #f59e0b 60%, #78350f 100%);
+  border-color: #fff;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.85);
+}
+
+/* Consola central STOP & Telemetría */
+.joy-center-pod {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   align-items: center;
-  padding: 4px 0;
+  justify-content: space-between;
+  gap: 8px;
+  height: 100%;
+  padding: 6px 0;
+}
+
+.joy-meta-tag {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .digital-hud-box {
@@ -363,19 +412,19 @@ main.app-main.admin-wide {
   background: #02050e;
   border: 1px solid rgba(0, 240, 255, 0.25);
   border-radius: 8px;
-  padding: 4px 2px;
+  padding: 4px 5px;
   text-align: center;
 }
 
 .digital-hud-title {
-  font-size: 0.55rem;
+  font-size: 0.54rem;
   color: #64748b;
   text-transform: uppercase;
   display: block;
 }
 
 .digital-hud-value {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 800;
   color: var(--neon-cyan);
   white-space: nowrap;
@@ -386,32 +435,177 @@ main.app-main.admin-wide {
 
 /* BOTÓN DE PARADA DE EMERGENCIA */
 .emergency-stop-btn {
-  width: 86px;
-  height: 86px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   background: radial-gradient(circle at 50% 30%, #ef4444 0%, #b91c1c 60%, #7f1d1d 100%);
-  border: 3px solid #fecaca;
+  border: 2.5px solid #fecaca;
   color: #fff;
   font-weight: 900;
-  font-size: 0.78rem;
-  letter-spacing: 0.05em;
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.4);
-  transition: all 0.1s ease;
+  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.35);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
   user-select: none;
 }
 
 .emergency-stop-btn:active {
-  transform: scale(0.92);
-  box-shadow: 0 0 25px rgba(239, 68, 68, 0.9);
+  transform: scale(0.93);
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.9);
 }
 
 .emergency-stop-btn i {
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   margin-bottom: -2px;
+}
+
+/* DOCK DE 4 SWITCHES MINIMALISTAS CON LED DE ESTADO */
+.fn-switch-dock {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  background: rgba(2, 6, 17, 0.62);
+  border: 1px solid rgba(0, 240, 255, 0.18);
+  border-radius: 12px;
+  padding: 5px;
+  margin-top: 2px;
+}
+
+.fn-switch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: linear-gradient(180deg, #101e3b 0%, #071024 100%);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 8px;
+  color: #cbd5e1;
+  font-weight: 700;
+  font-size: 0.66rem;
+  padding: 6px 4px;
+  transition: all 0.12s ease;
+}
+
+.fn-switch i {
+  font-size: 0.82rem;
+  color: #38bdf8;
+}
+
+.fn-switch-amber i {
+  color: #fbbf24;
+}
+
+.sw-led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #334155;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.fn-switch.is-on {
+  border-color: rgba(16, 185, 129, 0.65);
+  background: linear-gradient(180deg, #0d2a2f 0%, #061822 100%);
+  color: #ecfdf5;
+}
+
+.fn-switch.is-on .sw-led {
+  background: var(--neon-emerald);
+  box-shadow: 0 0 8px var(--neon-emerald);
+}
+
+.fn-switch-amber.is-on {
+  border-color: rgba(245, 158, 11, 0.7);
+}
+
+.fn-switch-amber.is-on .sw-led {
+  background: var(--neon-amber);
+  box-shadow: 0 0 8px var(--neon-amber);
+}
+
+.fn-switch:active,
+.fn-switch.cmd-active {
+  transform: translateY(1px);
+  border-color: var(--neon-cyan);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.45);
+}
+
+.fn-switch:disabled,
+.excavator-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  filter: grayscale(0.75);
+}
+
+.excavator-aux-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.excavator-btn-aux {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: linear-gradient(180deg, #132448 0%, #091328 100%);
+  border: 1px solid rgba(16, 185, 129, 0.38);
+  border-radius: 7px;
+  color: #6ee7b7;
+  font-weight: 700;
+  font-size: 0.62rem;
+  padding: 4px 8px;
+}
+
+/* Ergonomía móvil vertical (< 480px): Dual Joystick arriba + STOP horizontal compacto */
+@media (max-width: 479px) {
+  .dual-joystick-stage {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr auto;
+    gap: 6px;
+  }
+
+  .joy-center-pod {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    height: auto;
+    padding: 4px 8px;
+    background: rgba(2, 6, 17, 0.55);
+    border: 1px solid rgba(239, 68, 68, 0.22);
+    border-radius: 12px;
+  }
+
+  .joy-center-pod .digital-hud-box {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .emergency-stop-btn {
+    width: auto;
+    min-width: 106px;
+    height: 38px;
+    border-radius: 50rem;
+    flex-direction: row;
+    gap: 6px;
+    padding: 0 14px;
+  }
+
+  .emergency-stop-btn i {
+    font-size: 1rem;
+    margin-bottom: 0;
+  }
 }
 
 /* ==========================================================================
@@ -451,7 +645,7 @@ main.app-main.admin-wide {
 }
 
 .terminal-feed {
-  height: 38px;
+  height: 32px;
   overflow-y: auto;
   color: #cbd5e1;
 }
@@ -623,4 +817,68 @@ input:focus-visible,
 select:focus-visible {
   outline: 2px solid #00f0ff !important;
   outline-offset: 1px;
+}
+
+/* ==========================================================================
+   PORTAL DE ACCESO MULTI-ROL Y SELECTOR DEL MODAL LOGIN
+   ========================================================================== */
+.role-portal-card {
+  background: rgba(3, 10, 26, 0.82);
+  border: 1px solid rgba(0, 229, 255, 0.24);
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.role-option-tile {
+  background: rgba(8, 17, 38, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.role-option-tile-active {
+  border-color: rgba(16, 185, 129, 0.55);
+  background: rgba(6, 26, 30, 0.65);
+}
+
+.login-role-pills {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  background: rgba(2, 6, 17, 0.75);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.login-role-pill {
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 5px 4px;
+  border-radius: 7px;
+  transition: all 0.15s ease;
+}
+
+.login-role-pill.active {
+  background: rgba(0, 210, 255, 0.18);
+  border-color: rgba(0, 240, 255, 0.45);
+  color: #00f0ff;
+}
+
+.login-role-pill[data-role-tab="ADMINISTRADOR"].active {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+}
+
+.login-role-pill[data-role-tab="INVITADO"].active {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #34d399;
 }

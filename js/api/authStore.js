@@ -15,6 +15,7 @@ class AuthStore {
           token: parsed.token || null,
           user: parsed.user || null,
           guestSession: parsed.guestSession || null,
+          guestAlias: parsed.guestAlias || 'Invitado Web',
           activeVehicleId: Number(parsed.activeVehicleId) || 1,
           activeVehicleName: parsed.activeVehicleName || 'Excavadora · ID #1'
         };
@@ -24,6 +25,7 @@ class AuthStore {
       token: null,
       user: null,
       guestSession: null,
+      guestAlias: 'Invitado Web',
       activeVehicleId: 1,
       activeVehicleName: 'Excavadora · ID #1'
     };
@@ -60,6 +62,18 @@ class AuthStore {
     return this.state.guestSession?.reserva?.token_sesion || null;
   }
 
+  getGuestAlias() {
+    return this.state.guestAlias || 'Invitado Web';
+  }
+
+  setGuestAlias(alias) {
+    const clean = String(alias || '').trim().slice(0, 40);
+    if (clean) {
+      this.state.guestAlias = clean;
+      this.#save();
+    }
+  }
+
   getActiveVehicleId() {
     return Number(this.state.activeVehicleId) || 1;
   }
@@ -78,11 +92,17 @@ class AuthStore {
   clearSession() {
     this.state.token = null;
     this.state.user = null;
+    this.state.guestSession = null;
     this.#save();
   }
 
   setGuestSession(reservaResp) {
+    this.state.token = null;
+    this.state.user = null;
     this.state.guestSession = reservaResp;
+    if (reservaResp?.reserva?.alias_invitado) {
+      this.state.guestAlias = reservaResp.reserva.alias_invitado;
+    }
     if (reservaResp?.unidad?.id_vehiculo) {
       this.state.activeVehicleId = Number(reservaResp.unidad.id_vehiculo);
       this.state.activeVehicleName = `${reservaResp.unidad.nombre} · ID #${reservaResp.unidad.id_vehiculo}`;

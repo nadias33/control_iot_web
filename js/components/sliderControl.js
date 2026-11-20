@@ -33,6 +33,15 @@ export class SliderControl {
     this.#initEvents();
   }
 
+  /** Actualiza dinámicamente el mapeo de comandos (ej. al sincronizar con RDS). */
+  setMapping(newMapping) {
+    if (!newMapping || typeof newMapping !== 'object') return;
+    this.mapping = {
+      ...this.mapping,
+      ...newMapping
+    };
+  }
+
   #initEvents() {
     if (!this.track || !this.thumb) return;
 

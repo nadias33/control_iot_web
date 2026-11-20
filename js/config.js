@@ -37,18 +37,26 @@ export const CONFIG = {
   // Tiempo de espera máximo para peticiones Fetch (ms)
   REQUEST_TIMEOUT_MS: 6000,
 
-  // Mapeo canónico de comandos hacia códigos de tu base de datos
+  // Mapeo canónico de comandos hacia códigos reales del control NO. 555-104 (+ DETENER)
   COMANDOS: {
     AVANZAR: 1,
     RETROCEDER: 2,
-    CABINA_IZQ: 3,
-    CABINA_DER: 4,
-    GIRAR_DER: 5,
-    GIRAR_IZQ: 6,
-    SUBIR_BRAZO: 7,
-    BAJAR_BRAZO: 8,
+    GIRAR_IZQUIERDA: 3,
+    GIRAR_IZQ: 3,
+    GIRAR_DERECHA: 4,
+    GIRAR_DER: 4,
+    SUBIR_GARRA: 5,
+    SUBIR_BRAZO: 5,
+    BAJAR_GARRA: 6,
+    BAJAR_BRAZO: 6,
+    LUZ: 7,
+    SONIDO: 8,
     DETENER: 9,
-    ABRIR_PALA: 10,
-    CERRAR_PALA: 11
+    CABINA_IZQUIERDA: 10,
+    CABINA_IZQ: 10,
+    CABINA_DERECHA: 11,
+    CABINA_DER: 11,
+    VELOCIDAD: 12,
+    DEMO_AUTO: 13
   }
 };

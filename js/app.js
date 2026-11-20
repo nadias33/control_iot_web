@@ -3,7 +3,7 @@ import { api } from './api/client.js';
 import { authStore } from './api/authStore.js';
 import { wsManager } from './websocket/wsManager.js';
 import { StatusPanel } from './components/statusPanel.js';
-import { SliderControl } from './components/sliderControl.js';
+import { Joystick } from './components/joystick.js';
 import { ButtonsController } from './components/buttons.js';
 import { DemoControl } from './components/demoControl.js';
 import { MonitoringView } from './components/monitoringView.js';
@@ -33,9 +33,13 @@ class App {
     this.btnAbrirLogin = document.getElementById('btnAbrirLogin');
     this.btnCerrarSesion = document.getElementById('btnCerrarSesion');
     this.loginModal = null;
+    this.selectedLoginRole = 'USUARIO';
 
-    this.sliderTraction = null;
-    this.sliderSteering = null;
+    this.joyLeft = null;
+    this.joyRight = null;
+    this.buttonsController = null;
+    this.stopCommandId = CONFIG.COMANDOS.DETENER;
+    this.syncedCommandsVehicleId = null;
     this.demoControl = null;
     this.monitoringView = null;
     this.adminView = null;
@@ -69,49 +73,45 @@ class App {
     wsManager.connect(CONFIG.VEHICLE_ID, this.#getWsAuthOpts());
     this.#setupWebSocketListeners();
 
-    // 5. Instanciar los DOS CONTROLES TIPO SLIDER (DESLIZADORES TÁCTILES CON CENTRADO)
-    this.sliderTraction = new SliderControl({
-      trackId: 'sliderTrackTraction',
-      thumbId: 'sliderThumbTraction',
-      valueLabelId: 'sliderValTraction',
-      orientation: 'vertical',
-      name: 'TRACCIÓN',
-      threshold: 0.22,
-      mapping: {
-        POSITIVE: { id: CONFIG.COMANDOS.AVANZAR, name: 'AVANZAR' },
-        NEUTRAL: { id: CONFIG.COMANDOS.DETENER, name: 'DETENER' },
-        NEGATIVE: { id: CONFIG.COMANDOS.RETROCEDER, name: 'RETROCEDER' }
-      },
-      onCommand: (idCmd, nombre, norm) => {
-        this.#updateDirectionDisplay(`TRACCIÓN: ${nombre}`, norm);
-        this.ejecutarComando(idCmd, `SLIDER_TRACCION_${nombre}`);
+    // 5. Instanciar DUAL JOYSTICK 360° (Chasis/Cabina Izq + Orugas/Garra Der)
+    this.joyLeft = new Joystick('joyLeftZone', 'joyLeftHandle', (idCmd, nombre, dirKey) => {
+      if (dirKey === 'NEUTRAL') {
+        this.#updateDirectionDisplay('REPOSO (CENTRO)', 0);
+        this.ejecutarComando(idCmd, 'JOYSTICK_CENTRO_DETENER');
+      } else {
+        this.#updateDirectionDisplay(`CHASIS: ${nombre}`, 1);
+        this.ejecutarComando(idCmd, `JOY_IZQ_${nombre}`);
       }
+    }, {
+      UP: { id: CONFIG.COMANDOS.AVANZAR, name: 'AVANZAR' },
+      DOWN: { id: CONFIG.COMANDOS.RETROCEDER, name: 'RETROCEDER' },
+      LEFT: { id: CONFIG.COMANDOS.CABINA_IZQUIERDA, name: 'CABINA_IZQUIERDA' },
+      RIGHT: { id: CONFIG.COMANDOS.CABINA_DERECHA, name: 'CABINA_DERECHA' }
     });
 
-    this.sliderSteering = new SliderControl({
-      trackId: 'sliderTrackSteering',
-      thumbId: 'sliderThumbSteering',
-      valueLabelId: 'sliderValSteering',
-      orientation: 'vertical',
-      name: 'DIRECCIÓN',
-      threshold: 0.22,
-      mapping: {
-        POSITIVE: { id: CONFIG.COMANDOS.GIRAR_IZQ, name: 'GIRAR_IZQ' },
-        NEUTRAL: { id: CONFIG.COMANDOS.DETENER, name: 'RECTO' },
-        NEGATIVE: { id: CONFIG.COMANDOS.GIRAR_DER, name: 'GIRAR_DER' }
-      },
-      onCommand: (idCmd, nombre, norm) => {
-        this.#updateDirectionDisplay(`DIRECCIÓN: ${nombre}`, norm);
-        this.ejecutarComando(idCmd, `SLIDER_DIRECCION_${nombre}`);
+    this.joyRight = new Joystick('joyRightZone', 'joyRightHandle', (idCmd, nombre, dirKey) => {
+      if (dirKey === 'NEUTRAL') {
+        this.#updateDirectionDisplay('REPOSO (CENTRO)', 0);
+        this.ejecutarComando(idCmd, 'JOYSTICK_CENTRO_DETENER');
+      } else {
+        this.#updateDirectionDisplay(`EXCAVADORA: ${nombre}`, 1);
+        this.ejecutarComando(idCmd, `JOY_DER_${nombre}`);
       }
+    }, {
+      UP: { id: CONFIG.COMANDOS.SUBIR_GARRA, name: 'SUBIR_GARRA' },
+      DOWN: { id: CONFIG.COMANDOS.BAJAR_GARRA, name: 'BAJAR_GARRA' },
+      LEFT: { id: CONFIG.COMANDOS.GIRAR_IZQUIERDA, name: 'GIRAR_IZQUIERDA' },
+      RIGHT: { id: CONFIG.COMANDOS.GIRAR_DERECHA, name: 'GIRAR_DERECHA' }
     });
 
-    // 6. Botones auxiliares superiores (Cabina L1/R1) y Parada de Emergencia STOP
-    new ButtonsController((comandoId, nombreCmd) => {
-      if (comandoId === CONFIG.COMANDOS.DETENER) {
-        if (this.sliderTraction) this.sliderTraction.resetToCenter();
-        if (this.sliderSteering) this.sliderSteering.resetToCenter();
+    // 6. Switches de funciones (Luz, Música, Velocidad, Demo) y Parada de Emergencia STOP
+    this.buttonsController = new ButtonsController((comandoId, nombreCmd) => {
+      if (Number(comandoId) === Number(this.stopCommandId)) {
+        this.joyLeft?.resetToCenter(true);
+        this.joyRight?.resetToCenter(true);
         this.#updateDirectionDisplay('EMERGENCY STOP (REPOSO)', 0);
+      } else {
+        this.#updateDirectionDisplay(`FUNCIÓN: ${nombreCmd}`, 1);
       }
       this.ejecutarComando(comandoId, `CONTROL_${nombreCmd}`);
     });
@@ -127,7 +127,9 @@ class App {
       onLog: (msg) => this.log(msg),
       onSelectVehicle: (idVehiculo, nombre) => this.cambiarVehiculoActivo(idVehiculo, nombre),
       onDemosChanged: () => this.demoControl?.resetYcargarDemos(),
-      onGoToControl: () => this.tabControl?.click()
+      onGoToControl: () => this.tabControl?.click(),
+      onOpenLogin: (role) => this.#openLoginModal(role),
+      onEnterGuestMode: (alias) => this.activarModoInvitado(alias)
     });
 
     // Botón para limpiar logs
@@ -136,6 +138,15 @@ class App {
         this.terminal.innerHTML = '<div class="text-secondary small">[LOG LIMPIO]</div>';
       });
     }
+
+    // Reintentar sincronizar catálogo de comandos si WSS entra en línea antes de completarse
+    wsManager.onStatusChange((status) => {
+      if (status === 'ONLINE' && this.syncedCommandsVehicleId !== Number(CONFIG.VEHICLE_ID)) {
+        this.#sincronizarComandosVehiculo();
+      }
+    });
+
+    this.#sincronizarComandosVehiculo();
 
     if (authStore.getToken()) {
       this.#sincronizarUnidadesUsuario();
@@ -174,18 +185,32 @@ class App {
       this.loginModal = new bootstrap.Modal(modalEl);
     }
 
+    document.querySelectorAll('#loginRoleTabs [data-role-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.#selectLoginRoleTab(btn.dataset.roleTab);
+      });
+    });
+
+    document.getElementById('btnConfirmGuestMode')?.addEventListener('click', async () => {
+      const alias = document.getElementById('loginGuestAlias')?.value?.trim() || '';
+      this.loginModal?.hide();
+      await this.activarModoInvitado(alias);
+    });
+
     this.btnAbrirLogin?.addEventListener('click', () => {
-      document.getElementById('loginErrorBox')?.classList.add('d-none');
-      this.loginModal?.show();
+      this.#openLoginModal('USUARIO');
     });
 
     this.btnCerrarSesion?.addEventListener('click', async () => {
       try {
+        if (authStore.getGuestToken()) {
+          await this.adminView?.finalizarReservaInvitado();
+        }
         if (authStore.getToken()) await api.logout();
       } catch (_) {}
       authStore.clearSession();
       this.log('[AUTH] Sesión cerrada. Modo Invitado activo.');
-      this.#onAuthChanged();
+      await this.#onAuthChanged();
     });
 
     document.getElementById('formLogin')?.addEventListener('submit', async (e) => {
@@ -227,12 +252,104 @@ class App {
       this.#onAuthChanged();
     };
 
+    authStore.onChange(() => this.#renderSessionStrip());
     this.#renderSessionStrip();
+  }
+
+  #selectLoginRoleTab(role = 'USUARIO') {
+    const normalized = ['USUARIO', 'ADMINISTRADOR', 'INVITADO'].includes(role) ? role : 'USUARIO';
+    this.selectedLoginRole = normalized;
+
+    document.querySelectorAll('#loginRoleTabs [data-role-tab]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.roleTab === normalized);
+    });
+
+    const formEl = document.getElementById('formLogin');
+    const guestPane = document.getElementById('modalGuestPane');
+    const hintEl = document.getElementById('loginRoleHint');
+    const userInput = document.getElementById('loginUsername');
+    const submitBtn = document.getElementById('btnSubmitLogin');
+    const guestAliasInput = document.getElementById('loginGuestAlias');
+    document.getElementById('loginErrorBox')?.classList.add('d-none');
+
+    const roleUiConfig = {
+      USUARIO: {
+        isGuest: false,
+        hint: 'Acceso de cliente comprador (ej. <code>comprador1</code>) para operar tus vehículos asignados y editar DEMOs.',
+        placeholder: 'Ej. comprador1',
+        btnText: 'Entrar como Usuario',
+        btnClass: 'btn btn-info btn-sm w-100 fw-bold text-dark'
+      },
+      ADMINISTRADOR: {
+        isGuest: false,
+        hint: 'Acceso administrativo (ej. <code>admin</code>) para gestionar modelos, unidades físicas, clientes y bitácora.',
+        placeholder: 'Ej. admin',
+        btnText: 'Entrar como Administrador',
+        btnClass: 'btn btn-warning btn-sm w-100 fw-bold text-dark'
+      },
+      INVITADO: {
+        isGuest: true,
+        hint: 'Modo exhibición pública sin contraseña para explorar el catálogo y probar unidades disponibles.',
+        placeholder: '',
+        btnText: '',
+        btnClass: ''
+      }
+    };
+
+    const cfg = roleUiConfig[normalized];
+    formEl?.classList.toggle('d-none', cfg.isGuest);
+    guestPane?.classList.toggle('d-none', !cfg.isGuest);
+    if (hintEl) hintEl.innerHTML = cfg.hint;
+
+    if (cfg.isGuest) {
+      if (guestAliasInput) guestAliasInput.value = authStore.getGuestAlias();
+    } else {
+      if (userInput) userInput.placeholder = cfg.placeholder;
+      if (submitBtn) {
+        submitBtn.textContent = cfg.btnText;
+        submitBtn.className = cfg.btnClass;
+      }
+    }
+  }
+
+  #openLoginModal(preferredRole = 'USUARIO') {
+    this.#selectLoginRoleTab(preferredRole);
+    this.loginModal?.show();
+  }
+
+  async activarModoInvitado(alias = '') {
+    const hadToken = Boolean(authStore.getToken());
+    if (hadToken) {
+      try {
+        await api.logout();
+      } catch (_) {}
+      authStore.clearSession();
+    }
+    if (alias && alias.trim()) {
+      authStore.setGuestAlias(alias);
+    }
+
+    if (hadToken) {
+      await this.#onAuthChanged();
+    } else {
+      this.#renderSessionStrip();
+      this.adminView?.syncRoleVisibility();
+    }
+
+    if (this.viewAdmin?.classList.contains('d-none')) {
+      this.tabAdmin?.click();
+    } else {
+      this.adminView?.switchSection('invitado');
+    }
+    this.log(`[AUTH] Modo Invitado activo (${authStore.getGuestAlias()}).`);
   }
 
   #renderSessionStrip() {
     const rol = authStore.getRole();
     const user = authStore.getUser();
+    const guestSession = authStore.getGuestSession();
+    const guestAlias = authStore.getGuestAlias();
+
     if (this.badgeRol) {
       this.badgeRol.textContent = rol;
       this.badgeRol.className = rol === 'ADMINISTRADOR'
@@ -242,7 +359,15 @@ class App {
           : 'badge bg-secondary text-uppercase';
     }
     if (this.txtUsuario) {
-      this.txtUsuario.textContent = user ? `${user.nombre_completo} (@${user.username})` : 'Modo exhibición pública';
+      if (user) {
+        this.txtUsuario.textContent = `${user.nombre_completo} (@${user.username})`;
+      } else if (guestSession?.reserva) {
+        const alias = guestSession.reserva.alias_invitado || guestAlias;
+        const vehId = guestSession.unidad?.id_vehiculo || guestSession.reserva.id_vehiculo;
+        this.txtUsuario.textContent = `Exhibición activa: ${alias} · unidad #${vehId}`;
+      } else {
+        this.txtUsuario.textContent = `Modo invitado · ${guestAlias}`;
+      }
     }
     this.btnAbrirLogin?.classList.toggle('d-none', Boolean(user));
     this.btnCerrarSesion?.classList.toggle('d-none', !user);
@@ -271,6 +396,7 @@ class App {
       if (!unidades || unidades.length === 0) {
         this.selectVehiculo.classList.add('d-none');
         wsManager.connect(CONFIG.VEHICLE_ID, this.#getWsAuthOpts());
+        this.#sincronizarComandosVehiculo();
         return;
       }
 
@@ -297,6 +423,7 @@ class App {
     const targetId = Number(idVehiculo) || 1;
     const label = nombre || `Unidad · ID #${targetId}`;
     CONFIG.VEHICLE_ID = targetId;
+    this.syncedCommandsVehicleId = null;
     authStore.setActiveVehicle(targetId, label);
     if (this.txtVehiculoNombre) {
       this.txtVehiculoNombre.textContent = label;
@@ -308,6 +435,152 @@ class App {
     this.monitoringView?.resetParaCambioVehiculo();
     wsManager.connect(targetId, this.#getWsAuthOpts());
     this.demoControl?.resetYcargarDemos();
+    this.#sincronizarComandosVehiculo();
+  }
+
+  async #sincronizarComandosVehiculo() {
+    const targetVehicleId = Number(CONFIG.VEHICLE_ID) || 1;
+    const ALIAS_MAP = {
+      AVANZAR: ['AVANZAR', 'ADELANTE', 'FORWARD'],
+      RETROCEDER: ['RETROCEDER', 'ATRAS', 'BACKWARD'],
+      GIRAR_IZQUIERDA: ['GIRAR_IZQUIERDA', 'GIRAR_IZQ', 'TRACK_LEFT'],
+      GIRAR_DERECHA: ['GIRAR_DERECHA', 'GIRAR_DER', 'TRACK_RIGHT'],
+      SUBIR_GARRA: ['SUBIR_GARRA', 'UNINSTALL', 'DESCARGAR', 'SUBIR_BRAZO', 'DESENGANCHE'],
+      BAJAR_GARRA: ['BAJAR_GARRA', 'DIG', 'CAVAR', 'BAJAR_BRAZO', 'EXCAVAR'],
+      LUZ: ['LUZ', 'LUCES', 'LIGHT', 'LUCES_SONIDO', 'ABRIR_PALA'],
+      SONIDO: ['SONIDO', 'MUSICA', 'MUSIC', 'BOCINA', 'CLAXON', 'CERRAR_PALA'],
+      DETENER: ['DETENER', 'STOP', 'PARAR'],
+      CABINA_IZQUIERDA: ['CABINA_IZQUIERDA', 'CABINA_IZQ', 'GIRAR_CABINA_IZQ', 'GIRAR_CABINA_IZQUIERDA', 'TURNTABLE_LEFT'],
+      CABINA_DERECHA: ['CABINA_DERECHA', 'CABINA_DER', 'GIRAR_CABINA_DER', 'GIRAR_CABINA_DERECHA', 'TURNTABLE_RIGHT'],
+      VELOCIDAD: ['VELOCIDAD', 'SPEED', 'LUCES_SONIDO'],
+      DEMO_AUTO: ['DEMO_AUTO', 'ONE_KEY_DEMO', 'DEMO', 'AUTODEMO']
+    };
+    const normalizar = (texto) => String(texto || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+
+    try {
+      const lista = await api.getComandos(targetVehicleId);
+      if (targetVehicleId !== Number(CONFIG.VEHICLE_ID)) return;
+
+      const activos = (Array.isArray(lista) ? lista : []).filter(
+        c => c && (c.activo === undefined || Boolean(c.activo))
+      );
+
+      const resolvedByKey = new Map();
+      const claimedIds = new Set();
+
+      // 1. Emparejamiento exacto por nombre normalizado y alias
+      Object.entries(ALIAS_MAP).forEach(([key, aliases]) => {
+        const match = activos.find(c => aliases.includes(normalizar(c.nombre)));
+        if (match) {
+          resolvedByKey.set(key, match);
+          claimedIds.add(Number(match.id_comando));
+        }
+      });
+
+      // 2. Respaldo por código numérico solo para comandos no reclamados
+      Object.keys(ALIAS_MAP).forEach((key) => {
+        if (resolvedByKey.has(key)) return;
+        const expectedCode = CONFIG.COMANDOS[key];
+        if (!expectedCode) return;
+        const match = activos.find(
+          c => Number(c.codigo) === Number(expectedCode) && !claimedIds.has(Number(c.id_comando))
+        );
+        if (match) {
+          resolvedByKey.set(key, match);
+          claimedIds.add(Number(match.id_comando));
+        }
+      });
+
+      const resolverComando = (key) => resolvedByKey.get(key) || null;
+
+      // Sincronizar STOP y Dual Joystick con los id_comando reales en RDS
+      const stopCmd = resolverComando('DETENER');
+      this.stopCommandId = stopCmd ? Number(stopCmd.id_comando) : CONFIG.COMANDOS.DETENER;
+      this.buttonsController?.setStopCommandId(this.stopCommandId);
+      this.joyLeft?.setStopCommandId(this.stopCommandId);
+      this.joyRight?.setStopCommandId(this.stopCommandId);
+
+      const cmdAvanzar = resolverComando('AVANZAR');
+      const cmdRetroceder = resolverComando('RETROCEDER');
+      const cmdCabIzq = resolverComando('CABINA_IZQUIERDA');
+      const cmdCabDer = resolverComando('CABINA_DERECHA');
+      this.joyLeft?.setMapping({
+        UP: cmdAvanzar ? { id: Number(cmdAvanzar.id_comando), name: cmdAvanzar.nombre } : { id: null, name: 'AVANZAR' },
+        DOWN: cmdRetroceder ? { id: Number(cmdRetroceder.id_comando), name: cmdRetroceder.nombre } : { id: null, name: 'RETROCEDER' },
+        LEFT: cmdCabIzq ? { id: Number(cmdCabIzq.id_comando), name: cmdCabIzq.nombre } : { id: null, name: 'CABINA_IZQUIERDA' },
+        RIGHT: cmdCabDer ? { id: Number(cmdCabDer.id_comando), name: cmdCabDer.nombre } : { id: null, name: 'CABINA_DERECHA' }
+      });
+
+      const cmdSubirGarra = resolverComando('SUBIR_GARRA');
+      const cmdBajarGarra = resolverComando('BAJAR_GARRA');
+      const cmdIzq = resolverComando('GIRAR_IZQUIERDA');
+      const cmdDer = resolverComando('GIRAR_DERECHA');
+      this.joyRight?.setMapping({
+        UP: cmdSubirGarra ? { id: Number(cmdSubirGarra.id_comando), name: cmdSubirGarra.nombre } : { id: null, name: 'SUBIR_GARRA' },
+        DOWN: cmdBajarGarra ? { id: Number(cmdBajarGarra.id_comando), name: cmdBajarGarra.nombre } : { id: null, name: 'BAJAR_GARRA' },
+        LEFT: cmdIzq ? { id: Number(cmdIzq.id_comando), name: cmdIzq.nombre } : { id: null, name: 'GIRAR_IZQUIERDA' },
+        RIGHT: cmdDer ? { id: Number(cmdDer.id_comando), name: cmdDer.nombre } : { id: null, name: 'GIRAR_DERECHA' }
+      });
+
+      const usedIds = new Set(
+        [stopCmd, cmdAvanzar, cmdRetroceder, cmdCabIzq, cmdCabDer, cmdSubirGarra, cmdBajarGarra, cmdIzq, cmdDer]
+          .filter(Boolean)
+          .map(c => Number(c.id_comando))
+      );
+
+      // Sincronizar switches de función (.btn-cmd[data-cmd-key])
+      document.querySelectorAll('#viewControl .btn-cmd[data-cmd-key]').forEach((btn) => {
+        const key = btn.dataset.cmdKey;
+        const match = resolverComando(key);
+        if (match) {
+          btn.disabled = false;
+          btn.dataset.codigo = String(match.id_comando);
+          btn.dataset.nombre = match.nombre;
+          btn.title = `${match.nombre} (Cód: ${match.codigo})`;
+          usedIds.add(Number(match.id_comando));
+        } else {
+          btn.disabled = true;
+          btn.title = `Comando ${key} no disponible en unidad #${targetVehicleId}`;
+        }
+      });
+
+      // Renderizar comandos adicionales propios del vehículo si existen en RDS
+      const extraRow = document.getElementById('excavatorExtraRow');
+      if (extraRow) {
+        extraRow.querySelectorAll('.dynamic-cmd-btn').forEach(el => el.remove());
+        const extras = activos.filter(c => !usedIds.has(Number(c.id_comando)));
+        extraRow.classList.toggle('d-none', extras.length === 0);
+        extras.forEach((extra) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'excavator-btn excavator-btn-aux dynamic-cmd-btn btn-cmd';
+          btn.dataset.codigo = String(extra.id_comando);
+          btn.dataset.nombre = extra.nombre;
+          btn.title = `${extra.nombre} (Cód: ${extra.codigo})`;
+
+          const icon = document.createElement('i');
+          icon.className = 'bi bi-lightning-charge-fill';
+          const labelSpan = document.createElement('span');
+          labelSpan.textContent = extra.nombre;
+
+          btn.appendChild(icon);
+          btn.appendChild(labelSpan);
+          extraRow.appendChild(btn);
+        });
+      }
+
+      const badgeCount = document.getElementById('badgeMovimientosCount');
+      if (badgeCount) {
+        badgeCount.textContent = (activos.length === 13 && stopCmd)
+          ? '12 mov. + STOP'
+          : `${activos.length} cmds RDS`;
+      }
+
+      this.syncedCommandsVehicleId = targetVehicleId;
+      this.log(`[CONTROL] ${activos.length} movimientos sincronizados desde RDS para vehículo #${targetVehicleId}.`);
+    } catch (err) {
+      this.log(`[CONTROL] Mapeo local de respaldo activo (${err.message}).`);
+    }
   }
 
   #updateDirectionDisplay(texto, norm) {
@@ -326,7 +599,7 @@ class App {
   }
 
   async ejecutarComando(idComando, origen) {
-    if (this.isSending && idComando !== CONFIG.COMANDOS.DETENER) {
+    if (this.isSending && Number(idComando) !== Number(this.stopCommandId)) {
       return;
     }
 
@@ -353,6 +626,7 @@ class App {
           ? await api.postInvitadoMovimiento(idComando, origen)
           : await api.postMovimiento(idComando, origen);
         this.log(`[REST OK] Aceptado por API: ${resp.evento?.comando || 'Correcto'}`);
+        this.monitoringView?.sincronizarTodo();
       } else {
         this.log(`[WSS TX] Comando #${idComando} transmitido por WebSocket`);
       }
